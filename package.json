@@ -1,0 +1,41 @@
+{
+  "name": "@tierklinikdobersberg/door-controller",
+  "version": "0.0.1",
+  "description": "Controls the main entry door",
+  "main": "dist/index.js",
+  "scripts": {
+    "prestart": "tsc",
+    "build": "tsc",
+    "start": "node ./dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tierklinik-dobersberg/door-controller.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tierklinik-dobersberg/door-controller/issues"
+  },
+  "homepage": "https://github.com/tierklinik-dobersberg/door-controller#readme",
+  "devDependencies": {
+    "@jsmon/plugin-httpserver": "0.0.1",
+    "@types/node": "^10.11.3",
+    "jest": "^23.6.0",
+    "rxjs-compat": "^6.3.3",
+    "tslint": "^5.11.0",
+    "typescript": "^3.1.1"
+  },
+  "dependencies": {
+    "@jsmon/cli": "0.0.1",
+    "@jsmon/core": "0.0.1",
+    "@jsmon/platform": "0.0.1",
+    "@types/restify": "^7.2.5",
+    "jsonpath": "^1.0.0",
+    "onoff": "^3.2.2",
+    "reflect-metadata": "^0.1.12",
+    "restify": "^7.2.1",
+    "rxjs": "^6.3.3"
+  }
+}
