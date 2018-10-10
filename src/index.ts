@@ -128,8 +128,16 @@ export class DoorControlCommand implements Runnable {
             return;
         }
         
+        let running = false;
         scheduler.state
             .subscribe(async state => {
+                if (running) {
+                    this._log.warn(`Skipping interval as tick handler is still running`);
+                    return;
+                }
+                
+                running = true;
+                
                 try {
                     switch(state) {
                     case 'lock':
@@ -145,6 +153,8 @@ export class DoorControlCommand implements Runnable {
                 } catch (err) {
                     this._log.error(`Failed to set door state to ${state}: ${err}`);
                 }
+                
+                running = false;
             });
         
         // Health check endpoint
