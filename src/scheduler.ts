@@ -1,6 +1,8 @@
-import {Injectable, Optional, Inject} from '@jsmon/core';
+import {Injectable, Optional, Inject, Logger, NoopLogAdapter, OnDestroy} from '@jsmon/core';
 import {writeFileSync, readFileSync, existsSync} from 'fs';
+import {Subscription, Subject, Observable} from 'rxjs';
 import {join} from 'path';
+import {Ticker} from './ticker';
 
 /**
  * Possible door states
@@ -64,6 +66,11 @@ export interface OverwriteConfig {
  * Definition of the scheduler file format
  */
 export interface SchedulerConfig {
+    // The number of seconds until the same door state should be sent
+    // This is required as some commands will be lost if the door
+    // is still open
+    reconfigureInterval?: number;
+
     // The default schedules to unlock the door based
     // on a per week-day basis
     unlockSchedules: UnlockSchedule;
@@ -76,11 +83,18 @@ export interface SchedulerConfig {
 }
 
 @Injectable()
-export class Scheduler {
+export class Scheduler implements OnDestroy {
     private _config: Readonly<SchedulerConfig>|null = null;
+    private _tickerSubscription: Subscription|null = null;
+    private readonly _state$: Subject<DoorState> = new Subject();
 
-    constructor(@Inject(SCHEDULER_FILE) @Optional() private _filePath?: string) {
-        if (!this._filePath) {
+    constructor(private _ticker: Ticker,
+                @Inject(SCHEDULER_FILE) @Optional() private _filePath?: string,
+                private _log: Logger = new Logger(new NoopLogAdapter)) {
+                
+        this._log = this._log.createChild('scheduler');
+
+        if (this._filePath === undefined) {
             if (!process.env.HOME) {
                 throw new Error(`Cannot determinate default location for the scheduler file`);
             }
@@ -88,7 +102,13 @@ export class Scheduler {
             this._filePath = join(process.env.HOME!, '.door-controller.sched');
         }
         
+        this._log.info(`Using configuration from: ${this._filePath}`);
+        
         this._readAndParseConfig();
+    }
+    
+    get state(): Observable<DoorState> {
+        return this._state$;
     }
     
     /**
@@ -99,17 +119,99 @@ export class Scheduler {
      * @param [write] - Wether the new configuration file should be written to disk as well
      */
     public setConfig(cfg: SchedulerConfig, write: boolean = false): void {
-        const configErrors = this._validateSchedulerConfig(cfg);
+        const configErrors = Scheduler.validateSchedulerConfig(cfg);
         if (configErrors.length > 0) {
             throw new Error(configErrors.join('; '));
         }
+
+        // If no reconfigureInterval is set default to 5 minutes
+        if (!cfg.reconfigureInterval) {
+            cfg.reconfigureInterval = 5 * 60;
+        }
         
         this._config = Object.freeze(cfg);
+        
+        this._setupInterval();
         
         if (write) {
             const content = JSON.stringify(this._config!, undefined, 4);
             writeFileSync(this.configPath, content);
         }
+    }
+    
+    /**
+     * Adds a new unlock time-frame for a given weekday and optionally saves the configuration
+     * file to disk
+     * 
+     * @param day - The number or name of the weekday to add a new time frame to
+     * @param frame - The time frame to add to the weekday
+     * @param [saveConfig] - Wether or not the config should be safed to disk (defaults to true)
+     */
+    public addTimeFrame(day: number|keyof UnlockSchedule, frame: TimeFrame, saveConfig: boolean = true): void {
+        if (typeof day === 'number') {
+            day = Scheduler._getKeyFromWeekDay(day);
+        }
+        
+        const schedule = this.config.unlockSchedules[day];
+        
+        // we can assert that the must already exist in the scheduler configuration
+        if (schedule === undefined) {
+            throw new Error(`${day} does not exist in config.unlockSchedules`);
+        }
+        
+        // check if there is any time frame that overlaps the new one
+        const fromOverlaps = schedule.some(ref => Scheduler.isInTimeFrame(frame.from[TimeIndex.Hour], frame.from[TimeIndex.Hour], ref));
+        const toOverlaps = schedule.some(ref => Scheduler.isInTimeFrame(frame.to[TimeIndex.Hour], frame.to[TimeIndex.Minute], ref));
+        
+        if (fromOverlaps || toOverlaps) {
+            throw new Error(`The "${fromOverlaps ? 'from' : 'to'}" time overlaps with an existing time-frame`);
+        }
+        
+        const copy = this.copyConfig();
+        
+        copy.unlockSchedules[day].push(frame);
+        
+        this.setConfig(copy, saveConfig);
+    }
+    
+    /**
+     * Removes all unlock schedules from a given weekday and optionally safes the configuration
+     * 
+     * @param day - The number or name of the weekday
+     * @param safeConfig 
+     */
+    public clearWeekdayConfig(day: number|keyof UnlockSchedule, safeConfig: boolean = true): void {
+        if (typeof day === 'number') {
+            day = Scheduler._getKeyFromWeekDay(day);
+        }
+        
+        const schedule = this.config.unlockSchedules[day];
+
+        // We can assert that there must at least be an empty array
+        if (schedule === undefined) {
+            throw new Error(`${day} does not exist in config.unlockSchedules`)
+        }
+        
+        // Bail out if there is nothing to do
+        if (schedule.length === null) {
+            return;
+        }
+        
+        const copy = this.copyConfig();
+        copy.unlockSchedules[day] = [];
+
+        this.setConfig(copy, safeConfig);
+    }
+    
+    /**
+     * Returns a writeable copy of the current configuration
+     */
+    public copyConfig(): SchedulerConfig {
+        return {
+            reconfigureInterval: this.config.reconfigureInterval,
+            unlockSchedules: { ... this.config.unlockSchedules },
+            currentOverwrite: !!this.config.currentOverwrite ? { ...this.config.currentOverwrite } : null
+        };
     }
 
     /**
@@ -149,7 +251,7 @@ export class Scheduler {
 
 
         // check if we have a overwrite config and if we are still in it's time-frame
-        if (!!this.config.currentOverwrite && this.isTimeBefore(currentTime, this.config.currentOverwrite.until)) {
+        if (!!this.config.currentOverwrite && Scheduler.isTimeBefore(currentTime, this.config.currentOverwrite.until)) {
             return this.config.currentOverwrite.state;
         } else {
             // If we still have a overwrite but are after it's until time,
@@ -162,16 +264,25 @@ export class Scheduler {
             }
         }
         
-        const currentDayConfig = this.config.unlockSchedules[this._getKeyFromWeekDay(weekDay)];
+        const currentDayConfig = this.config.unlockSchedules[Scheduler._getKeyFromWeekDay(weekDay)];
 
         // We now have to check a set of "unlock" time-frames and if we are in the middle of one
-        const withinTimeFrame = currentDayConfig.some(frame => this.isInTimeFrame(hour, minutes, frame));
+        const withinTimeFrame = currentDayConfig.some(frame => Scheduler.isInTimeFrame(hour, minutes, frame));
 
         if (withinTimeFrame) {
             return 'unlock';
         }
         
         return 'lock';
+    }
+
+    /**
+     * @internal
+     * 
+     * Called by the dependency injector if the scheduler is being destroyed
+     */
+    public onDestroy() {
+        this._state$.complete();
     }
     
     /**
@@ -180,7 +291,7 @@ export class Scheduler {
      * @param t1 - The time to check if it's before t2
      * @param t2 - The reference time
      */
-    public isTimeBefore(t1: Time, t2: Time): boolean {
+    public static isTimeBefore(t1: Time, t2: Time): boolean {
         if (t1[TimeIndex.Hour] > t2[TimeIndex.Hour]) {
             return false;
         }
@@ -198,7 +309,7 @@ export class Scheduler {
      * @param t1 - The time to check if it's after t2
      * @param t2 - The reference time
      */
-    public isTimeAfter(t1: Time, t2: Time): boolean {
+    public static isTimeAfter(t1: Time, t2: Time): boolean {
         if (t1[TimeIndex.Hour] < t2[TimeIndex.Hour]) {
             return false;
         }
@@ -218,7 +329,7 @@ export class Scheduler {
      * @param minute - The current minute
      * @param frame  - The time frame to check against
      */
-    public isInTimeFrame(hour: number, minute: number, frame: TimeFrame): boolean {
+    public static isInTimeFrame(hour: number, minute: number, frame: TimeFrame): boolean {
         if (hour < frame.from[TimeIndex.Hour]) {
             return false;
         }
@@ -238,14 +349,109 @@ export class Scheduler {
         // We are in the middle of the specified time frame
         return true;
     }
+    
+    /**
+     * Validates a scheduler configuration and returns a list of errors if any
+     * 
+     * @param config - The scheduler configuration to validate
+     */
+    public static validateSchedulerConfig(config: SchedulerConfig): Error[] {
+        let result: Error[] = [];
+        
+        if (!config.unlockSchedules) {
+            result.push(new Error(`Missing "unlockSchedules" configuration`));
+        } else {
+            const days: (keyof UnlockSchedule)[]= [
+                'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+            ];
+            
+            days.forEach(key => {
+                const frames = config.unlockSchedules[key];
+                if (frames === undefined || frames === null) {
+                    result.push(new Error(`No unlock schedule for ${key} defined. Use [] to signal no unlock-schedules`));
+                    return;
+                }
+                
+                frames.forEach(frame => {
+                    const frameErrors = Scheduler.isValidTimeFrame(frame);
+                    if (!!frameErrors) {
+                        result = result.concat(...frameErrors);
+                    }
+                });
+            });
+        }
+
+        return result;
+    }
+    
+    /**
+     * Validates the times and the time-span of a {@link TimeFrame} for correctness
+     * 
+     * @param frame - The {@link TimeFrame} to validate
+     */
+    public static isValidTimeFrame(frame: TimeFrame): Error[]|null {
+        let errors: Error[] = [];
+        
+        errors = errors.concat(...Scheduler.validateTime(frame.from, 'from'));
+        errors = errors.concat(...Scheduler.validateTime(frame.to, 'to'));
+        
+        // Make sure that to is not before from
+        
+        const start = Scheduler._timeToMinutes(frame.from);
+        const end = Scheduler._timeToMinutes(frame.to);
+
+        if (end < start) {
+            errors.push(new Error(`invalid time frame. "to" MUST NOT be before "from"`));
+        }
+        
+        if (end === start) { 
+            errors.push(new Error(`invalid time frame. "to" MUST NOT be equal to "from"`));
+        }
+        
+        return errors.length === 0 ? null : errors;
+    }
+    
+    /**
+     * @internal 
+     *
+     * Converts a time into an absolute number of minutes (startin for 00:00)
+     * 
+     * @param time - The time to convert into minutes
+     */
+    private static _timeToMinutes(time: Time): number {
+        return 60 * time[TimeIndex.Hour]
+                + time[TimeIndex.Minute];
+    }
+    
+    /**
+     * Validates a {@link Time} and returns a set of errors found
+     * 
+     * @param time - The time to validate
+     * @param key  - The key to use for error messages (e.g. TimeFrame.${key}[hour|minute])
+     */
+    public static validateTime(time: Time, key: string): Error[] {
+        const errors: Error[] = [];
+        const [hour, minute] = [time[TimeIndex.Hour], time[TimeIndex.Minute]];
+
+        if (hour < 0) {
+            errors.push(new Error(`TimeFrame.${key}[hour] MUST be positive; got "${hour}"`));
+        }
+        if (minute < 0) {
+            errors.push(new Error(`TimeFrame.${key}[minute] MUST be positive; got "${minute}"`));
+        }
+        
+        return errors;
+    }
 
     /**
+     * @internal
+     * 
      * Returns the day key for {@link UnlockSchedule} based on the
      * week-day number
      * 
      * @param day - The number of the week-day (0-6)
      */
-    private _getKeyFromWeekDay(day: number): keyof UnlockSchedule {
+    private static _getKeyFromWeekDay(day: number): keyof UnlockSchedule {
         switch(day) {
             case 0:
                 return 'sunday';
@@ -288,102 +494,17 @@ export class Scheduler {
         this.setConfig(config);
     }
     
-    /**
-     * @internal 
-     *
-     * Validates a scheduler configuration and returns a list of possible errors
-     * 
-     * @param config - The scheduler configuration to validate
-     */
-    private _validateSchedulerConfig(config: SchedulerConfig): Error[] {
-        let result: Error[] = [];
+    private _setupInterval() {
+        if (!!this._tickerSubscription) {
+            this._tickerSubscription.unsubscribe();
+            this._tickerSubscription = null;
+        }
         
-        if (!config.unlockSchedules) {
-            result.push(new Error(`Missing "unlockSchedules" configuration`));
-        } else {
-            const days: (keyof UnlockSchedule)[]= [
-                'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
-            ];
-            
-            days.forEach(key => {
-                const frames = config.unlockSchedules[key];
-                if (frames === undefined || frames === null) {
-                    result.push(new Error(`No unlock schedule for ${key} defined. Use [] to signal no unlock-schedules`));
-                    return;
-                }
-                
-                frames.forEach(frame => {
-                    const frameErrors = this._isValidTimeFrame(frame);
-                    if (!!frameErrors) {
-                        result = result.concat(...frameErrors);
-                    }
-                });
+        this._tickerSubscription = this._ticker.interval(this.config.reconfigureInterval || 300)
+            .subscribe(() => {
+                const desiredState = this.getConfigForDate(new Date());
+                this._log.info(`Desired door state is ${desiredState}ed`);
+                this._state$.next(desiredState);
             });
-        }
-
-        return result;
-    }
-    
-    /**
-     * @internal 
-     *
-     * Validates the times and the time-span of a {@link TimeFrame} for correctness
-     * 
-     * @param frame - The {@link TimeFrame} to validate
-     */
-    private _isValidTimeFrame(frame: TimeFrame): Error[]|null {
-        let errors: Error[] = [];
-        
-        errors = errors.concat(...this._validateTime(frame.from, 'from'));
-        errors = errors.concat(...this._validateTime(frame.to, 'to'));
-        
-        // Make sure that to is not before from
-        
-        const start = this._timeToMinutes(frame.from);
-        const end = this._timeToMinutes(frame.to);
-
-        if (end < start) {
-            errors.push(new Error(`invalid time frame. "to" MUST NOT be before "from"`));
-        }
-        
-        if (end === start) { 
-            errors.push(new Error(`invalid time frame. "to" MUST NOT be equal to "from"`));
-        }
-        
-        return errors.length === 0 ? null : errors;
-    }
-    
-    /**
-     * @internal 
-     *
-     * Converts a time into an absolute number of minutes (startin for 00:00)
-     * 
-     * @param time - The time to convert into minutes
-     */
-    private _timeToMinutes(time: Time): number {
-        return 60 * time[TimeIndex.Hour]
-                + time[TimeIndex.Minute];
-    }
-    
-    /**
-     * @internal 
-     *
-     * Validates a {@link Time} and returns a set of errors found
-     * 
-     * @param time - The time to validate
-     * @param key  - The key to use for error messages (e.g. TimeFrame.${key}[hour|minute])
-     */
-    private _validateTime(time: Time, key: string): Error[] {
-        const errors: Error[] = [];
-        const [hour, minute] = [time[TimeIndex.Hour], time[TimeIndex.Minute]];
-
-        if (hour < 0) {
-            errors.push(new Error(`TimeFrame.${key}[hour] MUST be positive; got "${hour}"`));
-        }
-        if (minute < 0) {
-            errors.push(new Error(`TimeFrame.${key}[minute] MUST be positive; got "${minute}"`));
-        }
-        
-        return errors;
     }
 }

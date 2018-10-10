@@ -1,0 +1,13 @@
+{
+    "reconfigureInterval": 10,
+    "unlockSchedules": {
+        "monday": [],
+        "tuesday": [],
+        "wednesday": [],
+        "thursday": [],
+        "friday": [],
+        "saturday": [],
+        "sunday": []
+    },
+    "currentOverwrite": null
+}

@@ -1,11 +1,13 @@
 import {Injector, Provider} from '@jsmon/core';
 import {Command, run, Option} from '@jsmon/cli';
-import {Logger, ConsoleAdapter, useLoggingAdapter} from '@jsmon/core';
+import {Logger, LogLevel, ConsoleAdapter, useLoggingAdapter} from '@jsmon/core';
 import {Runnable} from '@jsmon/cli/interfaces';
 import {HTTPServerPlugin, HTTPServer} from '@jsmon/plugin-httpserver';
 import {readFileSync} from 'fs';
 import {BoardController, BOARD_CONFIG, BoardConfig, DummyBoardController} from './board';
 import {Request, Response} from 'restify';
+import {Scheduler, SCHEDULER_FILE} from './scheduler';
+import {Ticker} from './ticker';
 
 @Command({
     name: 'Door controller for Tierklinik Dobersberg',
@@ -20,6 +22,14 @@ import {Request, Response} from 'restify';
     ]
 })
 export class DoorControlCommand implements Runnable {
+
+    @Option({
+        name: 'loglevel',
+        short: 'l',
+        argType: 'string',
+        description: 'The log level (debug, info, warn, error)'
+    })
+    private readonly logLevel: LogLevel|undefined;
 
     @Option({
         name: 'port',
@@ -38,6 +48,15 @@ export class DoorControlCommand implements Runnable {
         valuePlaceholder: 'CONFIG'
     })
     public readonly boardConfig: string|undefined;
+
+    @Option({
+        name: 'scheduler-config',
+        short: 's',
+        argType: 'string',
+        description: 'Path to the scheduler configuration file',
+        valuePlaceholder: 'CONFIG'
+    })
+    public readonly schedulerConfigPath: string|undefined;
     
     @Option({
         name: 'dummy-board',
@@ -50,13 +69,21 @@ export class DoorControlCommand implements Runnable {
     constructor(private _injector: Injector,
                 private _server: HTTPServer,
                 private _log: Logger) {
-        this._log = this._log.createChild(`door`);
     }
     
     async run() {
         const providers: Provider[] = [
-            this.useDummyBoard ? {provide: BoardController, useClass: DummyBoardController} : BoardController
+            this.useDummyBoard ? {provide: BoardController, useClass: DummyBoardController} : BoardController,
+            Scheduler,
+            Ticker,
         ];
+
+        if (!!this.logLevel) {
+            this._log.setLogLevel(this.logLevel);
+            this._log.debug(`setting log-level to ${this.logLevel}`);
+        }
+        
+        this._log = this._log.createChild(`door`);
 
         if (!!this.boardConfig) {
             const configContent = readFileSync(this.boardConfig);
@@ -76,6 +103,13 @@ export class DoorControlCommand implements Runnable {
             }
         }
         
+        if (!!this.schedulerConfigPath) {
+            providers.push({
+                provide: SCHEDULER_FILE,
+                useValue: this.schedulerConfigPath
+            });
+        }
+        
         const child = this._injector.createChild(providers);
         
         let ctrl: BoardController;
@@ -85,6 +119,33 @@ export class DoorControlCommand implements Runnable {
             this._log.error(`Failed to setup board controller: ${err}`);
             return;
         }
+        
+        let scheduler: Scheduler;
+        try {
+            scheduler = child.get<Scheduler>(Scheduler);
+        } catch (err) {
+            this._log.error(`Failed to create scheduler: ${err}`);
+            return;
+        }
+        
+        scheduler.state
+            .subscribe(async state => {
+                try {
+                    switch(state) {
+                    case 'lock':
+                        await ctrl.lock();
+                        break;
+                    case 'unlock':
+                        await ctrl.unlock();
+                        break;
+                    case 'open':
+                        await ctrl.open();
+                        break;
+                    }
+                } catch (err) {
+                    this._log.error(`Failed to set door state to ${state}: ${err}`);
+                }
+            });
         
         // Health check endpoint
         // TODO(ppacher): add the current state of the board controller
