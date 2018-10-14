@@ -175,6 +175,39 @@ export class Scheduler implements OnDestroy {
     }
     
     /**
+     * Delete a unlock time frame from a given weekday
+     * 
+     * @param day - The number of the name of the weekday
+     * @param timeFrame  - The time frame to delete
+     * @param safeConfig  - Whether or not the new configuration should be safed
+     */
+    public deleteSchedule(day: number|keyof UnlockSchedule, timeFrame: TimeFrame, safeConfig: boolean = true): void {
+        if (typeof day === 'number') {
+            day = Scheduler._getKeyFromWeekDay(day);
+        }
+        
+        const schedule = this.config.unlockSchedules[day];
+
+        if (schedule === undefined) {
+            throw new Error(`${day} does not exist in config.unlockSchedules`);
+        }
+        
+        if (schedule.length === 0) {
+            return;
+        }        
+        
+        const copy = this.copyConfig();
+        copy.unlockSchedules[day] = copy.unlockSchedules[day].filter(frame => {
+            return !(frame.to[TimeIndex.Hour] === timeFrame.to[TimeIndex.Hour] &&
+                   frame.to[TimeIndex.Minute] === timeFrame.to[TimeIndex.Minute] &&
+                   frame.from[TimeIndex.Hour] === timeFrame.from[TimeIndex.Hour] &&
+                   frame.from[TimeIndex.Minute] === timeFrame.from[TimeIndex.Minute]);
+        });
+
+        this.setConfig(copy, safeConfig);
+    }
+    
+    /**
      * Removes all unlock schedules from a given weekday and optionally safes the configuration
      * 
      * @param day - The number or name of the weekday

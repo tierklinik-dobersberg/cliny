@@ -32,14 +32,13 @@
   "dependencies": {
     "@jsmon/cli": "0.0.1",
     "@jsmon/core": "0.0.1",
-    "@jsmon/platform": "0.0.1",
-    "@jsmon/plugin-httpserver": "0.0.1",
+    "@jsmon/net": "0.0.1",
     "jsonpath": "^1.0.0",
     "onoff": "^3.2.2",
     "reflect-metadata": "^0.1.12",
     "restify": "^7.2.1",
-    "rxjs-compat": "^6.3.3",
-    "rxjs": "^6.3.3"
+    "rxjs": "^6.3.3",
+    "rxjs-compat": "^6.3.3"
   },
   "jest": {
     "transform": {

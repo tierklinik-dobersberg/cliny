@@ -2,20 +2,18 @@ import {Injector, Provider} from '@jsmon/core';
 import {Command, run, Option} from '@jsmon/cli';
 import {Logger, LogLevel, ConsoleAdapter, useLoggingAdapter} from '@jsmon/core';
 import {Runnable} from '@jsmon/cli/interfaces';
-import {HTTPServerPlugin, HTTPServer} from '@jsmon/plugin-httpserver';
+import {HttpServer} from '@jsmon/net/http/server';
 import {readFileSync} from 'fs';
 import {BoardController, BOARD_CONFIG, BoardConfig, DummyBoardController} from './board';
-import {Request, Response} from 'restify';
+import {Request, Response, plugins} from 'restify';
 import {Scheduler, SCHEDULER_FILE} from './scheduler';
 import {Ticker} from './ticker';
+import {API} from './server';
 
 @Command({
     name: 'Door controller for Tierklinik Dobersberg',
     description: 'Runs the built-in HTTP server to control the entry door',
     version: '0.0.1',
-    imports: [
-        HTTPServerPlugin
-    ],
     providers: [
         Logger,
         useLoggingAdapter(ConsoleAdapter),
@@ -67,7 +65,6 @@ export class DoorControlCommand implements Runnable {
 
 
     constructor(private _injector: Injector,
-                private _server: HTTPServer,
                 private _log: Logger) {
     }
     
@@ -76,6 +73,8 @@ export class DoorControlCommand implements Runnable {
             this.useDummyBoard ? {provide: BoardController, useClass: DummyBoardController} : BoardController,
             Scheduler,
             Ticker,
+            API,
+            HttpServer
         ];
 
         if (!!this.logLevel) {
@@ -128,6 +127,8 @@ export class DoorControlCommand implements Runnable {
             return;
         }
         
+        let server = child.get<HttpServer>(HttpServer);
+
         let running = false;
         scheduler.state
             .subscribe(async state => {
@@ -156,21 +157,14 @@ export class DoorControlCommand implements Runnable {
                 
                 running = false;
             });
+            
+        server.server.use(plugins.bodyParser());
         
-        // Health check endpoint
-        // TODO(ppacher): add the current state of the board controller
-        this._server.register('get', '/status', (_, res) => {
-            res.sendRaw(204);
-        });
-        
-        // Door control endpoints
-        this._server.register('post', '/open', this._makeRequestHandler(ctrl, 'open'));
-        this._server.register('post', '/lock', this._makeRequestHandler(ctrl, 'lock'));
-        this._server.register('post', '/unlock', this._makeRequestHandler(ctrl, 'unlock'));
+        server.mount(API);
 
         // Start serving
         this._log.info(`Listening on ${this.port}`);
-        this._server.listen(this.port);
+        server.listen(this.port);
     }
     
     private _makeRequestHandler(ctrl: BoardController, signal: 'open'|'lock'|'unlock'): (_: Request, res: Response) => void {
