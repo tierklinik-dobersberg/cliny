@@ -87,6 +87,8 @@ export class Scheduler implements OnDestroy {
     private _config: Readonly<SchedulerConfig>|null = null;
     private _tickerSubscription: Subscription|null = null;
     private readonly _state$: Subject<DoorState> = new Subject();
+    
+    private _pause: boolean = false; 
 
     constructor(private _ticker: Ticker,
                 @Inject(SCHEDULER_FILE) @Optional() private _filePath?: string,
@@ -105,6 +107,10 @@ export class Scheduler implements OnDestroy {
         this._log.info(`Using configuration from: ${this._filePath}`);
         
         this._readAndParseConfig();
+    }
+    
+    public pause(pause: boolean) {
+        this._pause = pause;
     }
     
     get state(): Observable<DoorState> {
@@ -137,6 +143,36 @@ export class Scheduler implements OnDestroy {
             const content = JSON.stringify(this._config!, undefined, 4);
             writeFileSync(this.configPath, content);
         }
+    }
+    
+    /**
+     * Removes the current overwrite configuration
+     * 
+     * @param safeConfig - Whether or not the configuration should be safed to disk
+     */
+    public clearOverwrite(safeConfig: boolean = true): void {
+        const copy = this.copyConfig();
+        copy.currentOverwrite = null;
+
+        this.setConfig(copy, safeConfig);
+    }
+    
+    /**
+     * Configures the current overwrite configuration
+     * 
+     * @param state - The desired door state for the overwrite
+     * @param until - Time until the overwrite is valid and should be applied
+     * @param safeConfig  - Whether or not the config should be safed to disk
+     */
+    public setOverwrite(state: DoorState, until: Time, safeConfig: boolean = true): void {
+        const copy = this.copyConfig();
+
+        copy.currentOverwrite = {
+            state: state,
+            until: until,
+        };
+        
+        this.setConfig(copy, safeConfig);
     }
     
     /**
@@ -535,6 +571,10 @@ export class Scheduler implements OnDestroy {
         
         this._tickerSubscription = this._ticker.interval(this.config.reconfigureInterval || 300)
             .subscribe(() => {
+                if (this._pause) {
+                    return;
+                }
+                
                 const desiredState = this.getConfigForDate(new Date());
                 this._log.info(`Desired door state is ${desiredState}ed`);
                 this._state$.next(desiredState);
