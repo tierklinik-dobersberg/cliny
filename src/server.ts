@@ -98,6 +98,9 @@ export class API {
             next();
             return;
         } catch(err) {
+            // Make sure we don't keep the scheduler in paused state
+            this._scheduler.pause(false);
+            
             next(err);
         }
     }
