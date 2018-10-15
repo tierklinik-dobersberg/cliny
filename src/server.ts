@@ -85,7 +85,7 @@ export class API {
             await this._board.lock();
             const desired = this._scheduler.getConfigForDate(new Date());
             
-            switch(desired) {
+            switch(desired.state) {
             case 'lock':
                 break;
             case 'unlock':

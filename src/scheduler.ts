@@ -57,6 +57,18 @@ export interface UnlockSchedule {
     sunday: TimeFrame[];
 }
 
+export interface DoorConfig {
+    /**
+     * The current state of the door
+     */
+    state: DoorState;
+    
+    /**
+     * The timestamp until the state is applied
+     */
+    until: number;
+}
+
 export interface OverwriteConfig {
     until: Time;
     state: DoorState;
@@ -312,16 +324,35 @@ export class Scheduler implements OnDestroy {
      * 
      * @param date - The date to retrieve the current door state for
      */
-    public getConfigForDate(date: Date): DoorState {
+    public getConfigForDate(date: Date): DoorConfig {
         const weekDay = date.getDay();
         const hour = date.getHours();
         const minutes = date.getMinutes();
         const currentTime: Time = [hour, minutes];
+        
+        let currentState: DoorState = 'lock';
+        let until: Date;
+        let isOverride: boolean = false;
 
+        const toDate = (t: Time, dateOffset?: number) => {
+            let now = new Date();
+            now.setMilliseconds(0),
+            now.setSeconds(0);
+            now.setHours(t[TimeIndex.Hour]);
+            if (dateOffset !== undefined) {
+                now.setDate(now.getDate() + dateOffset);
+            }
+            now.setMinutes(t[TimeIndex.Minute]);
+            
+            return now;
+        }
 
         // check if we have a overwrite config and if we are still in it's time-frame
         if (!!this.config.currentOverwrite && Scheduler.isTimeBefore(currentTime, this.config.currentOverwrite.until)) {
-            return this.config.currentOverwrite.state;
+            currentState = this.config.currentOverwrite.state;
+            isOverride = true;
+
+            until = toDate(this.config.currentOverwrite.until);
         } else {
             // If we still have a overwrite but are after it's until time,
             // clear it
@@ -331,18 +362,62 @@ export class Scheduler implements OnDestroy {
                 
                 this.setConfig(copy, true);
             }
+            
+            const currentDayConfig = this.config.unlockSchedules[Scheduler._getKeyFromWeekDay(weekDay)];
+
+            // We now have to check a set of "unlock" time-frames and if we are in the middle of one
+            const currentTimeFrame = currentDayConfig.find(frame => Scheduler.isInTimeFrame(hour, minutes, frame));
+
+            if (!!currentTimeFrame) {
+                currentState = 'unlock';
+                until = toDate(currentTimeFrame.to);
+            } else {
+                currentState = 'lock';
+                const next = this._getNextFrame(date);
+                
+                if (next === null) {
+                    until = null as any;
+                } else {
+                    let [dayOffset, untilTime] = next;
+                    until = toDate(untilTime.from, dayOffset);
+                }
+            }
         }
         
-        const currentDayConfig = this.config.unlockSchedules[Scheduler._getKeyFromWeekDay(weekDay)];
+        return {
+            state: currentState,
+            until: until!.getTime(),
+        };
+    }
+    
+    /**
+     * Searches for the next time-frame that becomes active
+     * 
+     * @param refDate - The reference date to use
+     */
+    private _getNextFrame(refDate: Date): [number, TimeFrame]|null {
+        let current = refDate.getDay();
+        let offset = 0;
+        while(offset <= 6) {
+            const name = Scheduler._getKeyFromWeekDay(current);
+            const config = this.config.unlockSchedules[name];
+            
+            const next = config.find(frame => {
+                let ref = new Date(refDate.getTime());
+                const from = Scheduler._dateFromOffset(frame.from[TimeIndex.Minute], frame.from[TimeIndex.Hour], offset, ref);
+                
+                return from > refDate;
+            });
+            
+            if (!!next) {
+                return [offset, next];
+            }
 
-        // We now have to check a set of "unlock" time-frames and if we are in the middle of one
-        const withinTimeFrame = currentDayConfig.some(frame => Scheduler.isInTimeFrame(hour, minutes, frame));
-
-        if (withinTimeFrame) {
-            return 'unlock';
+            current = (current + 1) % 7;
+            offset++;
         }
         
-        return 'lock';
+        return null;
     }
 
     /**
@@ -361,15 +436,10 @@ export class Scheduler implements OnDestroy {
      * @param t2 - The reference time
      */
     public static isTimeBefore(t1: Time, t2: Time): boolean {
-        if (t1[TimeIndex.Hour] > t2[TimeIndex.Hour]) {
-            return false;
-        }
-        
-        if (t1[TimeIndex.Hour] === t2[TimeIndex.Hour] && t1[TimeIndex.Minute] > t2[TimeIndex.Minute]) {
-            return false;
-        }
-        
-        return true;
+        const min1 = Scheduler._toTimestamp(t1);
+        const min2 = Scheduler._toTimestamp(t2);
+
+        return min1 < min2;
     }
     
     /**
@@ -379,15 +449,10 @@ export class Scheduler implements OnDestroy {
      * @param t2 - The reference time
      */
     public static isTimeAfter(t1: Time, t2: Time): boolean {
-        if (t1[TimeIndex.Hour] < t2[TimeIndex.Hour]) {
-            return false;
-        }
-        
-        if (t1[TimeIndex.Hour] === t2[TimeIndex.Hour] && t1[TimeIndex.Minute] < t2[TimeIndex.Minute]) {
-            return false;
-        }
-        
-        return true;
+        const min1 = Scheduler._toTimestamp(t1);
+        const min2 = Scheduler._toTimestamp(t2);
+
+        return min1 > min2;
     }
 
 
@@ -466,8 +531,8 @@ export class Scheduler implements OnDestroy {
         
         // Make sure that to is not before from
         
-        const start = Scheduler._timeToMinutes(frame.from);
-        const end = Scheduler._timeToMinutes(frame.to);
+        const start = Scheduler._toTimestamp(frame.from);
+        const end = Scheduler._toTimestamp(frame.to);
 
         if (end < start) {
             errors.push(new Error(`invalid time frame. "to" MUST NOT be before "from"`));
@@ -483,13 +548,22 @@ export class Scheduler implements OnDestroy {
     /**
      * @internal 
      *
-     * Converts a time into an absolute number of minutes (startin for 00:00)
+     * Converts a time into an absolute number of minutes (starting form 00:00)
      * 
      * @param time - The time to convert into minutes
      */
-    private static _timeToMinutes(time: Time): number {
-        return 60 * time[TimeIndex.Hour]
-                + time[TimeIndex.Minute];
+    private static _toTimestamp(time: Time): number {
+        return Scheduler._dateFromOffset(time[TimeIndex.Minute], time[TimeIndex.Hour]).getTime();
+    }
+
+    private static _dateFromOffset(minutes = 0, hours = 0, days = 0, ref = new Date()): Date {
+        ref.setDate(ref.getDate() + (days || 0));
+        ref.setHours(hours || 0);
+        ref.setMinutes(minutes || 0);
+        ref.setSeconds(0);
+        ref.setMilliseconds(0);
+        
+        return ref;
     }
     
     /**
@@ -540,6 +614,11 @@ export class Scheduler implements OnDestroy {
                 throw new Error(`Invalid week day number: ${day}`);
         }
     }
+    
+    private static _getNumberFromKey(day: keyof UnlockSchedule): number {
+        let keys: (keyof UnlockSchedule)[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        return keys.indexOf(day);
+    }
 
     /**
      * @internal
@@ -576,8 +655,8 @@ export class Scheduler implements OnDestroy {
                 }
                 
                 const desiredState = this.getConfigForDate(new Date());
-                this._log.info(`Desired door state is ${desiredState}ed`);
-                this._state$.next(desiredState);
+                this._log.info(`Desired door state is ${desiredState.state}ed until ${new Date(desiredState.until).toISOString()}`);
+                this._state$.next(desiredState.state);
             });
     }
 }
