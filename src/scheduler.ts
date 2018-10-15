@@ -601,7 +601,7 @@ export class Scheduler implements OnDestroy {
     }
 
     /**
-     * Returns a {@link Date} with preset hours and minutes, a possible offsetDate and a reference
+     * Returns a {@link Date} with preset hours and minutes, a possible day offset and a reference
      * date. Without any arguments, this function will return today at 00:00. 
      * 
      * @param [param] - Object describing the required date
@@ -622,15 +622,15 @@ export class Scheduler implements OnDestroy {
         refDate?: Date
     }): Date {
         
-        refDate = refDate || new Date();
+        let result = !!refDate ? new Date(refDate.getTime()) : new Date();
         
-        refDate.setDate(refDate.getDate() + (offsetDays || 0));
-        refDate.setHours(hours || 0);
-        refDate.setMinutes(minutes || 0);
-        refDate.setSeconds(0);
-        refDate.setMilliseconds(0);
+        result.setDate(result.getDate() + (offsetDays || 0));
+        result.setHours(hours || 0);
+        result.setMinutes(minutes || 0);
+        result.setSeconds(0);
+        result.setMilliseconds(0);
         
-        return refDate;
+        return result;
     }
     
     /**
