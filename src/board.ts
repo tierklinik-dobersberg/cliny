@@ -56,15 +56,15 @@ export class DummyBoardController implements IBoardController {
     }
     
     async open() {
-        this._log.info(`sending an OPEN signal`);
+        this._log.debug(`sending an OPEN signal`);
     }
     
     async lock() {
-        this._log.info(`sending a LOCK signal`);
+        this._log.debug(`sending a LOCK signal`);
     }
     
     async unlock() {
-        this._log.info(`sending an UNLOCK signal`)
+        this._log.debug(`sending an UNLOCK signal`)
     }
 }
 

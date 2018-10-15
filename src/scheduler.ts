@@ -67,6 +67,11 @@ export interface DoorConfig {
      * The timestamp until the state is applied
      */
     until: number;
+    
+    /**
+     * The ISO time format until the state is applied
+     */
+    untilISO: string;
 }
 
 export interface OverwriteConfig {
@@ -387,6 +392,7 @@ export class Scheduler implements OnDestroy {
         return {
             state: currentState,
             until: until!.getTime(),
+            untilISO: until!.toISOString(),
         };
     }
     
