@@ -126,10 +126,19 @@ export class Scheduler implements OnDestroy {
         this._readAndParseConfig();
     }
     
+    /**
+     * Pause or unpause the scheduler. When paused no state updates will be
+     * emitted via {@link Scheduler#state}
+     * 
+     * @param pause - Whether or not the scheduler should be paused
+     */
     public pause(pause: boolean) {
         this._pause = pause;
     }
     
+    /**
+     * Continously emits the currently required {@link DoorState}
+     */
     get state(): Observable<DoorState> {
         return this._state$;
     }
@@ -397,36 +406,6 @@ export class Scheduler implements OnDestroy {
     }
     
     /**
-     * Searches for the next time-frame that becomes active
-     * 
-     * @param refDate - The reference date to use
-     */
-    private _getNextFrame(refDate: Date): [number, TimeFrame]|null {
-        let current = refDate.getDay();
-        let offset = 0;
-        while(offset <= 6) {
-            const name = Scheduler._getKeyFromWeekDay(current);
-            const config = this.config.unlockSchedules[name];
-            
-            const next = config.find(frame => {
-                let ref = new Date(refDate.getTime());
-                const from = Scheduler._dateFromOffset(frame.from[TimeIndex.Minute], frame.from[TimeIndex.Hour], offset, ref);
-                
-                return from > refDate;
-            });
-            
-            if (!!next) {
-                return [offset, next];
-            }
-
-            current = (current + 1) % 7;
-            offset++;
-        }
-        
-        return null;
-    }
-
-    /**
      * @internal
      * 
      * Called by the dependency injector if the scheduler is being destroyed
@@ -442,8 +421,8 @@ export class Scheduler implements OnDestroy {
      * @param t2 - The reference time
      */
     public static isTimeBefore(t1: Time, t2: Time): boolean {
-        const min1 = Scheduler._toTimestamp(t1);
-        const min2 = Scheduler._toTimestamp(t2);
+        const min1 = Scheduler._toTodaysTimestamp(t1);
+        const min2 = Scheduler._toTodaysTimestamp(t2);
 
         return min1 < min2;
     }
@@ -455,8 +434,8 @@ export class Scheduler implements OnDestroy {
      * @param t2 - The reference time
      */
     public static isTimeAfter(t1: Time, t2: Time): boolean {
-        const min1 = Scheduler._toTimestamp(t1);
-        const min2 = Scheduler._toTimestamp(t2);
+        const min1 = Scheduler._toTodaysTimestamp(t1);
+        const min2 = Scheduler._toTodaysTimestamp(t2);
 
         return min1 > min2;
     }
@@ -537,8 +516,8 @@ export class Scheduler implements OnDestroy {
         
         // Make sure that to is not before from
         
-        const start = Scheduler._toTimestamp(frame.from);
-        const end = Scheduler._toTimestamp(frame.to);
+        const start = Scheduler._toTodaysTimestamp(frame.from);
+        const end = Scheduler._toTodaysTimestamp(frame.to);
 
         if (end < start) {
             errors.push(new Error(`invalid time frame. "to" MUST NOT be before "from"`));
@@ -549,27 +528,6 @@ export class Scheduler implements OnDestroy {
         }
         
         return errors.length === 0 ? null : errors;
-    }
-    
-    /**
-     * @internal 
-     *
-     * Converts a time into an absolute number of minutes (starting form 00:00)
-     * 
-     * @param time - The time to convert into minutes
-     */
-    private static _toTimestamp(time: Time): number {
-        return Scheduler._dateFromOffset(time[TimeIndex.Minute], time[TimeIndex.Hour]).getTime();
-    }
-
-    private static _dateFromOffset(minutes = 0, hours = 0, days = 0, ref = new Date()): Date {
-        ref.setDate(ref.getDate() + (days || 0));
-        ref.setHours(hours || 0);
-        ref.setMinutes(minutes || 0);
-        ref.setSeconds(0);
-        ref.setMilliseconds(0);
-        
-        return ref;
     }
     
     /**
@@ -592,6 +550,89 @@ export class Scheduler implements OnDestroy {
         return errors;
     }
 
+    
+    /**
+     * @internal
+     * 
+     * Searches for the next time-frame that becomes active
+     * 
+     * @param refDate - The reference date to use
+     */
+    private _getNextFrame(refDate: Date): [number, TimeFrame]|null {
+        let current = refDate.getDay();
+        let offset = 0;
+        while(offset <= 6) {
+            const name = Scheduler._getKeyFromWeekDay(current);
+            const config = this.config.unlockSchedules[name];
+            
+            const next = config.find(frame => {
+                let ref = new Date(refDate.getTime());
+                const from = Scheduler._dateFromPreset({
+                    minutes: frame.from[TimeIndex.Minute], 
+                    hours: frame.from[TimeIndex.Hour], 
+                    offsetDays: offset, 
+                    refDate: ref
+                });
+                
+                return from > refDate;
+            });
+            
+            if (!!next) {
+                return [offset, next];
+            }
+
+            current = (current + 1) % 7;
+            offset++;
+        }
+        
+        return null;
+    }
+
+    
+    /**
+     * @internal 
+     *
+     * Converts a time into an absolute number of minutes (starting form 00:00)
+     * 
+     * @param time - The time to convert into minutes
+     */
+    private static _toTodaysTimestamp(time: Time): number {
+        return Scheduler._dateFromPreset({minutes: time[TimeIndex.Minute], hours: time[TimeIndex.Hour]}).getTime();
+    }
+
+    /**
+     * Returns a {@link Date} with preset hours and minutes, a possible offsetDate and a reference
+     * date. Without any arguments, this function will return today at 00:00. 
+     * 
+     * @param [param] - Object describing the required date
+     * @param [param.minutes] - The number of minutes to set for the date (0-59). Default is 0
+     * @param [param.hours] - The number of hours to set for the date (0-23). Default is 0
+     * @param [param.offsetDays] - The number of days to add to the reference date. Default is 0
+     * @param [param.refDate] - The reference date to use. Default is today
+     */
+    private static _dateFromPreset({
+        minutes,
+        hours,
+        offsetDays,
+        refDate
+    }: {
+        minutes?: number;
+        hours?: number;
+        offsetDays?: number;
+        refDate?: Date
+    }): Date {
+        
+        refDate = refDate || new Date();
+        
+        refDate.setDate(refDate.getDate() + (offsetDays || 0));
+        refDate.setHours(hours || 0);
+        refDate.setMinutes(minutes || 0);
+        refDate.setSeconds(0);
+        refDate.setMilliseconds(0);
+        
+        return refDate;
+    }
+    
     /**
      * @internal
      * 
@@ -621,6 +662,14 @@ export class Scheduler implements OnDestroy {
         }
     }
     
+    /**
+     * @internal
+     * 
+     * Returns the number of the weekday (sunday = 0, saturday = 6) based on the
+     * name of the weekday as defined in the {@link UnlockSchedule}
+     * 
+     * @param day - The name of the weekday (keyof UnlockScheduler)
+     */
     private static _getNumberFromKey(day: keyof UnlockSchedule): number {
         let keys: (keyof UnlockSchedule)[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         return keys.indexOf(day);
