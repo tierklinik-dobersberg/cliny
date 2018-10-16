@@ -506,7 +506,7 @@ export class Scheduler implements OnDestroy {
     /**
      * Validates the times and the time-span of a {@link TimeFrame} for correctness
      * 
-     * @param frame - The {@link TimeFrame} to validate
+     * @param frame - The timeframe to validate
      */
     public static isValidTimeFrame(frame: TimeFrame): Error[]|null {
         let errors: Error[] = [];
@@ -534,7 +534,7 @@ export class Scheduler implements OnDestroy {
      * Validates a {@link Time} and returns a set of errors found
      * 
      * @param time - The time to validate
-     * @param key  - The key to use for error messages (e.g. TimeFrame.${key}[hour|minute])
+     * @param key  - The key to use for error messages (i.e: `"TimeFrame.${key}[hour|minute] ..."`)
      */
     public static validateTime(time: Time, key: string): Error[] {
         const errors: Error[] = [];
@@ -678,7 +678,7 @@ export class Scheduler implements OnDestroy {
     /**
      * @internal
      * 
-     * Reads and validates the scheduler configuration
+     * Reads and validates the scheduler configuration from disk
      */
     private _readAndParseConfig(): void {
         if (!existsSync(this.configPath)) {
