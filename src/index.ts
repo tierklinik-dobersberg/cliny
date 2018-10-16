@@ -8,7 +8,7 @@ import {BoardController, BOARD_CONFIG, BoardConfig, DummyBoardController} from '
 import {Request, Response, plugins} from 'restify';
 import {Scheduler, SCHEDULER_FILE} from './scheduler';
 import {Ticker} from './ticker';
-import {API} from './server';
+import {API, NotOpenMiddleware} from './server';
 
 @Command({
     name: 'Door controller for Tierklinik Dobersberg',
@@ -73,6 +73,7 @@ export class DoorControlCommand implements Runnable {
             this.useDummyBoard ? {provide: BoardController, useClass: DummyBoardController} : BoardController,
             Scheduler,
             Ticker,
+            NotOpenMiddleware,
             API,
             HttpServer
         ];
