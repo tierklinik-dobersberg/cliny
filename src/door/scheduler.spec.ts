@@ -1,4 +1,4 @@
-import {SchedulerConfig, Scheduler, UnlockSchedule} from './scheduler';
+import {SchedulerConfig, Scheduler, OpeningHours} from './scheduler';
 import {writeFileSync, unlinkSync, existsSync, write} from 'fs';
 import {randomBytes} from 'crypto';
 import {join} from 'path';
@@ -16,7 +16,8 @@ function getRandomFileName(): string {
 
 function getValidConfig(): SchedulerConfig {
     return {
-        unlockSchedules: {
+        delays: {},
+        openingHours: {
             monday: [
                 { from: [8, 0], to: [12, 0] },
             ],
@@ -83,7 +84,7 @@ describe('Scheduler', () => {
                 expect(() => new Scheduler(new Ticker(), configPath)).toThrow();
             });
             
-            const days: (keyof UnlockSchedule)[]= [
+            const days: (keyof OpeningHours)[]= [
                 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
             ];
             

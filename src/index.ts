@@ -1,17 +1,45 @@
-import {Injector, Provider} from '@jsmon/core';
+import {Injector, App, Bootstrap, forwardRef, Inject} from '@jsmon/core';
 import {Command, run, Option} from '@jsmon/cli';
+import {HTTPServerPlugin, HttpServer} from '@jsmon/net/http/server';
 import {Logger, LogLevel, ConsoleAdapter, useLoggingAdapter} from '@jsmon/core';
 import {Runnable} from '@jsmon/cli/interfaces';
-import {HttpServer} from '@jsmon/net/http/server';
-import {readFileSync} from 'fs';
-import {BoardController, BOARD_CONFIG, BoardConfig, DummyBoardController} from './board';
-import {Request, Response, plugins} from 'restify';
-import {Scheduler, SCHEDULER_FILE} from './scheduler';
-import {Ticker} from './ticker';
-import {API, NotOpenMiddleware} from './server';
+import {DoorPlugin, DoorPluginConfig, BoardConfig, DoorController} from './door';
+import {plugins} from 'restify';
+import { readFileSync } from 'fs';
+
+@App({
+    plugins: [
+        DoorPlugin,
+        HTTPServerPlugin
+    ]
+})
+export class Cliny {
+    private _main: ClinyBootstrap;
+
+    constructor(private _logger: Logger,
+                private _doorController: DoorController,
+                private _httpServer: HttpServer,
+                @Inject(forwardRef(() => ClinyBootstrap)) main: any) {
+        this._main = main;                 
+            
+        this._httpServer.server.use(plugins.bodyParser());
+        
+        this._doorController.setupRoutes(this._httpServer);
+
+        // Start serving
+        this._logger.info(`Listening on ${this._main.port}`);
+        this._httpServer.listen(this._main.port);
+    }
+
+    waitForTermination(): Promise<void> {
+        return new Promise((resolve, reject) => {
+        
+        });
+    }
+}
 
 @Command({
-    name: 'Door controller for Tierklinik Dobersberg',
+    name: 'cliny - backend for the Tierklinik Dobserberg',
     description: 'Runs the built-in HTTP server to control the entry door',
     version: '0.0.1',
     providers: [
@@ -19,7 +47,7 @@ import {API, NotOpenMiddleware} from './server';
         useLoggingAdapter(ConsoleAdapter),
     ]
 })
-export class DoorControlCommand implements Runnable {
+export class ClinyBootstrap implements Runnable {
 
     @Option({
         name: 'loglevel',
@@ -69,128 +97,46 @@ export class DoorControlCommand implements Runnable {
     }
     
     async run() {
-        const providers: Provider[] = [
-            this.useDummyBoard ? {provide: BoardController, useClass: DummyBoardController} : BoardController,
-            Scheduler,
-            Ticker,
-            NotOpenMiddleware,
-            API,
-            HttpServer
-        ];
-
         if (!!this.logLevel) {
             this._log.setLogLevel(this.logLevel);
             this._log.debug(`setting log-level to ${this.logLevel}`);
         }
         
         this._log = this._log.createChild(`door`);
+        
+        const doorConfig: DoorPluginConfig = {};
 
+        if (!!this.schedulerConfigPath) {
+            doorConfig.schedulerConfig = this.schedulerConfigPath;
+        }
+        
+        if (!!this.useDummyBoard) {
+            doorConfig.useDummyBoard = this.useDummyBoard;
+        }
+        
         if (!!this.boardConfig) {
             const configContent = readFileSync(this.boardConfig);
             try {
                 const config: BoardConfig = JSON.parse(configContent.toString());
-                // TODO(ppacher): validate board configuration
-                
-                // TODO(ppacher): update @jsmon/core to ensure we cannot pass a wrong token to useValue
-                // e.g. implement a similar concept to angulars InjectionToken (and enfore use of it)
-                providers.push({
-                    provide: BOARD_CONFIG,
-                    useValue: config,
-                });
+                doorConfig.boardConfig = config;
             } catch(err) {
                 this._log.error(`Failed to parse board configuration: ${err}`);
                 return;
             }
         }
         
-        if (!!this.schedulerConfigPath) {
-            providers.push({
-                provide: SCHEDULER_FILE,
-                useValue: this.schedulerConfigPath
-            });
-        }
+        const appInjector = this._injector.createChild(DoorPlugin.forConfig(doorConfig));
         
-        const child = this._injector.createChild(providers);
-        
-        let ctrl: BoardController;
-        try {
-            ctrl = child.get<BoardController>(BoardController);
-        } catch(err) {
-            this._log.error(`Failed to setup board controller: ${err}`);
-            return;
-        }
-        
-        let scheduler: Scheduler;
-        try {
-            scheduler = child.get<Scheduler>(Scheduler);
-        } catch (err) {
-            this._log.error(`Failed to create scheduler: ${err}`);
-            return;
-        }
-        
-        let server = child.get<HttpServer>(HttpServer);
-
-        let running = false;
-        scheduler.state
-            .subscribe(async state => {
-                if (running) {
-                    this._log.warn(`Skipping interval as tick handler is still running`);
-                    return;
-                }
-                
-                running = true;
-                
-                try {
-                    switch(state) {
-                    case 'lock':
-                        await ctrl.lock();
-                        break;
-                    case 'unlock':
-                        await ctrl.unlock();
-                        break;
-                    case 'open':
-                        await ctrl.open();
-                        break;
-                    }
-                } catch (err) {
-                    this._log.error(`Failed to set door state to ${state}: ${err}`);
-                }
-                
-                running = false;
-            });
+        const app = new Bootstrap()
+            .withInjector(appInjector)
+            .withProvider(Cliny)
+            .withLogger(this._log.createChild('cliny'))
+            .create(Cliny);
             
-        server.server.use(plugins.bodyParser());
-        
-        server.mount(API);
+        await app.waitForTermination();
+        this._log.info('Shutdown');
 
-        // Start serving
-        this._log.info(`Listening on ${this.port}`);
-        server.listen(this.port);
-    }
-    
-    private _makeRequestHandler(ctrl: BoardController, signal: 'open'|'lock'|'unlock'): (_: Request, res: Response) => void {
-        return async (_: Request, res: Response) => {
-            try {
-                switch(signal) {
-                case 'open':
-                    await ctrl.open();
-                    break;
-                case 'lock':
-                    await ctrl.lock();
-                    break;
-                case 'unlock':
-                    await ctrl.unlock();
-                    break;
-                default:
-                    throw new Error(`Invalid door signal ${signal}`);
-                }
-                
-                res.send(204);
-            } catch (err) {
-                res.send(500, err);
-            }
-        }
     }
 }
 
-run(DoorControlCommand);
+run(ClinyBootstrap);

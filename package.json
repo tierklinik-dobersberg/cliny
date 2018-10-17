@@ -1,7 +1,7 @@
 {
-  "name": "@tierklinikdobersberg/door-controller",
+  "name": "@tierklinikdobersberg/cliny",
   "version": "0.0.1",
-  "description": "Controls the main entry door",
+  "description": "Backend service for the Tierklinik Dobersberg",
   "main": "dist/index.js",
   "scripts": {
     "prestart": "tsc",
@@ -33,12 +33,14 @@
     "@jsmon/cli": "0.0.1",
     "@jsmon/core": "0.0.1",
     "@jsmon/net": "0.0.1",
+    "figlet": "^1.2.1",
     "jsonpath": "^1.0.0",
     "onoff": "^3.2.2",
     "reflect-metadata": "^0.1.12",
     "restify": "^7.2.1",
     "rxjs": "^6.3.3",
-    "rxjs-compat": "^6.3.3"
+    "rxjs-compat": "^6.3.3",
+    "typeorm": "^0.2.7"
   },
   "jest": {
     "transform": {

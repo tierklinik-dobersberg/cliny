@@ -42,12 +42,17 @@ export interface TimeFrame {
     to: Time;
 }
 
+export interface Delay {
+    before: number;
+    after: number;
+}
+
 /**
  * Injection token for the scheduler file path
  */
 export const SCHEDULER_FILE = 'SCHEDULER_FILE';
 
-export interface UnlockSchedule {
+export interface OpeningHours {
     monday: TimeFrame[];
     tuesday: TimeFrame[];
     wednesday: TimeFrame[];
@@ -87,10 +92,16 @@ export interface SchedulerConfig {
     // This is required as some commands will be lost if the door
     // is still open
     reconfigureInterval?: number;
+    
+
+    delays: {
+        open?: number;
+        close?: number;
+    }
 
     // The default schedules to unlock the door based
     // on a per week-day basis
-    unlockSchedules: UnlockSchedule;
+    openingHours: OpeningHours;
     
     // If set, the current configuration for `unlockSchedules` is ignored
     // and the door state is set according to the following {@link TimeFrame}
@@ -104,8 +115,28 @@ export class Scheduler implements OnDestroy {
     private _config: Readonly<SchedulerConfig>|null = null;
     private _tickerSubscription: Subscription|null = null;
     private readonly _state$: Subject<DoorState> = new Subject();
+    private _pause: boolean = false;
     
-    private _pause: boolean = false; 
+    private get delayBefore(): number {
+        if (!this._config) {
+            return 0;
+        }
+        return this.config.delays.open || 0;
+    } 
+    
+    private get delayAfter(): number {
+        if (!this._config) {
+            return 0;
+        }
+        return this.config.delays.close || 0;
+    }
+    
+    private get delays(): {before: number, after: number} {
+        return {
+            before: this.delayBefore,
+            after: this.delayAfter,
+        };
+    }
 
     constructor(private _ticker: Ticker,
                 @Inject(SCHEDULER_FILE) @Optional() private _filePath?: string,
@@ -209,21 +240,21 @@ export class Scheduler implements OnDestroy {
      * @param frame - The time frame to add to the weekday
      * @param [saveConfig] - Wether or not the config should be safed to disk (defaults to true)
      */
-    public addTimeFrame(day: number|keyof UnlockSchedule, frame: TimeFrame, saveConfig: boolean = true): void {
+    public addTimeFrame(day: number|keyof OpeningHours, frame: TimeFrame, saveConfig: boolean = true): void {
         if (typeof day === 'number') {
             day = Scheduler._getKeyFromWeekDay(day);
         }
         
-        const schedule = this.config.unlockSchedules[day];
+        const schedule = this.config.openingHours[day];
         
         // we can assert that the must already exist in the scheduler configuration
         if (schedule === undefined) {
-            throw new Error(`${day} does not exist in config.unlockSchedules`);
+            throw new Error(`${day} does not exist in config.openingHours`);
         }
         
         // check if there is any time frame that overlaps the new one
-        const fromOverlaps = schedule.some(ref => Scheduler.isInTimeFrame(frame.from[TimeIndex.Hour], frame.from[TimeIndex.Hour], ref));
-        const toOverlaps = schedule.some(ref => Scheduler.isInTimeFrame(frame.to[TimeIndex.Hour], frame.to[TimeIndex.Minute], ref));
+        const fromOverlaps = schedule.some(ref => Scheduler.isInTimeFrame(this.delays, frame.from[TimeIndex.Hour], frame.from[TimeIndex.Hour], ref));
+        const toOverlaps = schedule.some(ref => Scheduler.isInTimeFrame(this.delays, frame.to[TimeIndex.Hour], frame.to[TimeIndex.Minute], ref));
         
         if (fromOverlaps || toOverlaps) {
             throw new Error(`The "${fromOverlaps ? 'from' : 'to'}" time overlaps with an existing time-frame`);
@@ -231,7 +262,7 @@ export class Scheduler implements OnDestroy {
         
         const copy = this.copyConfig();
         
-        copy.unlockSchedules[day].push(frame);
+        copy.openingHours[day].push(frame);
         
         this.setConfig(copy, saveConfig);
     }
@@ -243,12 +274,12 @@ export class Scheduler implements OnDestroy {
      * @param timeFrame  - The time frame to delete
      * @param safeConfig  - Whether or not the new configuration should be safed
      */
-    public deleteSchedule(day: number|keyof UnlockSchedule, timeFrame: TimeFrame, safeConfig: boolean = true): void {
+    public deleteSchedule(day: number|keyof OpeningHours, timeFrame: TimeFrame, safeConfig: boolean = true): void {
         if (typeof day === 'number') {
             day = Scheduler._getKeyFromWeekDay(day);
         }
         
-        const schedule = this.config.unlockSchedules[day];
+        const schedule = this.config.openingHours[day];
 
         if (schedule === undefined) {
             throw new Error(`${day} does not exist in config.unlockSchedules`);
@@ -259,7 +290,7 @@ export class Scheduler implements OnDestroy {
         }        
         
         const copy = this.copyConfig();
-        copy.unlockSchedules[day] = copy.unlockSchedules[day].filter(frame => {
+        copy.openingHours[day] = copy.openingHours[day].filter(frame => {
             return !(frame.to[TimeIndex.Hour] === timeFrame.to[TimeIndex.Hour] &&
                    frame.to[TimeIndex.Minute] === timeFrame.to[TimeIndex.Minute] &&
                    frame.from[TimeIndex.Hour] === timeFrame.from[TimeIndex.Hour] &&
@@ -275,12 +306,12 @@ export class Scheduler implements OnDestroy {
      * @param day - The number or name of the weekday
      * @param safeConfig 
      */
-    public clearWeekdayConfig(day: number|keyof UnlockSchedule, safeConfig: boolean = true): void {
+    public clearWeekdayConfig(day: number|keyof OpeningHours, safeConfig: boolean = true): void {
         if (typeof day === 'number') {
             day = Scheduler._getKeyFromWeekDay(day);
         }
         
-        const schedule = this.config.unlockSchedules[day];
+        const schedule = this.config.openingHours[day];
 
         // We can assert that there must at least be an empty array
         if (schedule === undefined) {
@@ -293,7 +324,7 @@ export class Scheduler implements OnDestroy {
         }
         
         const copy = this.copyConfig();
-        copy.unlockSchedules[day] = [];
+        copy.openingHours[day] = [];
 
         this.setConfig(copy, safeConfig);
     }
@@ -303,8 +334,9 @@ export class Scheduler implements OnDestroy {
      */
     public copyConfig(): SchedulerConfig {
         return {
+            delays: {...this.config.delays},
             reconfigureInterval: this.config.reconfigureInterval,
-            unlockSchedules: { ... this.config.unlockSchedules },
+            openingHours: { ... this.config.openingHours },
             currentOverwrite: !!this.config.currentOverwrite ? { ...this.config.currentOverwrite } : null
         };
     }
@@ -346,9 +378,8 @@ export class Scheduler implements OnDestroy {
         
         let currentState: DoorState = 'lock';
         let until: Date;
-        let isOverride: boolean = false;
 
-        const toDate = (t: Time, dateOffset?: number) => {
+        const toDate = (t: Time, dateOffset?: number, minuteOffset: number = 0) => {
             let now = new Date();
             now.setMilliseconds(0),
             now.setSeconds(0);
@@ -358,13 +389,16 @@ export class Scheduler implements OnDestroy {
             }
             now.setMinutes(t[TimeIndex.Minute]);
             
+            if (minuteOffset != 0) {
+                now = new Date(now.getTime() + minuteOffset * 60 * 1000);
+            }
+            
             return now;
         }
 
         // check if we have a overwrite config and if we are still in it's time-frame
         if (!!this.config.currentOverwrite && Scheduler.isTimeBefore(currentTime, this.config.currentOverwrite.until)) {
             currentState = this.config.currentOverwrite.state;
-            isOverride = true;
 
             until = toDate(this.config.currentOverwrite.until);
         } else {
@@ -377,14 +411,14 @@ export class Scheduler implements OnDestroy {
                 this.setConfig(copy, true);
             }
             
-            const currentDayConfig = this.config.unlockSchedules[Scheduler._getKeyFromWeekDay(weekDay)];
+            const currentDayConfig = this.config.openingHours[Scheduler._getKeyFromWeekDay(weekDay)];
 
             // We now have to check a set of "unlock" time-frames and if we are in the middle of one
-            const currentTimeFrame = currentDayConfig.find(frame => Scheduler.isInTimeFrame(hour, minutes, frame));
+            const currentTimeFrame = currentDayConfig.find(frame => Scheduler.isInTimeFrame(this.delays, hour, minutes, frame));
 
             if (!!currentTimeFrame) {
                 currentState = 'unlock';
-                until = toDate(currentTimeFrame.to);
+                until = toDate(currentTimeFrame.to, 0, this.delays.after);
             } else {
                 currentState = 'lock';
                 const next = this._getNextFrame(date);
@@ -393,7 +427,7 @@ export class Scheduler implements OnDestroy {
                     until = null as any;
                 } else {
                     let [dayOffset, untilTime] = next;
-                    until = toDate(untilTime.from, dayOffset);
+                    until = toDate(untilTime.from, dayOffset, -this.delays.before);
                 }
             }
         }
@@ -426,19 +460,6 @@ export class Scheduler implements OnDestroy {
 
         return min1 < min2;
     }
-    
-    /**
-     * Checks wether a time (t1) is after another time (t2)
-     * 
-     * @param t1 - The time to check if it's after t2
-     * @param t2 - The reference time
-     */
-    public static isTimeAfter(t1: Time, t2: Time): boolean {
-        const min1 = Scheduler._toTodaysTimestamp(t1);
-        const min2 = Scheduler._toTodaysTimestamp(t2);
-
-        return min1 > min2;
-    }
 
 
     /**
@@ -448,25 +469,12 @@ export class Scheduler implements OnDestroy {
      * @param minute - The current minute
      * @param frame  - The time frame to check against
      */
-    public static isInTimeFrame(hour: number, minute: number, frame: TimeFrame): boolean {
-        if (hour < frame.from[TimeIndex.Hour]) {
-            return false;
-        }
-        
-        if (hour === frame.from[TimeIndex.Hour] && minute < frame.from[TimeIndex.Minute]) {
-            return false;
-        }
-        
-        if (hour > frame.to[TimeIndex.Hour]) {
-            return false;
-        }
-        
-        if (hour === frame.to[TimeIndex.Hour] && minute > frame.to[TimeIndex.Minute]) {
-            return false;
-        }
-        
-        // We are in the middle of the specified time frame
-        return true;
+    public static isInTimeFrame(delays: Delay, hour: number, minute: number, frame: TimeFrame): boolean {
+        const fromMinutes = Scheduler._getMinutes(frame.from) + delays.before;
+        const afterMinutes = Scheduler._getMinutes(frame.to) + delays.after;
+        const refMinutes = Scheduler._getMinutes([hour, minute]);
+
+        return refMinutes >= fromMinutes && refMinutes < afterMinutes;
     }
     
     /**
@@ -477,15 +485,15 @@ export class Scheduler implements OnDestroy {
     public static validateSchedulerConfig(config: SchedulerConfig): Error[] {
         let result: Error[] = [];
         
-        if (!config.unlockSchedules) {
+        if (!config.openingHours) {
             result.push(new Error(`Missing "unlockSchedules" configuration`));
         } else {
-            const days: (keyof UnlockSchedule)[]= [
+            const days: (keyof OpeningHours)[]= [
                 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
             ];
             
             days.forEach(key => {
-                const frames = config.unlockSchedules[key];
+                const frames = config.openingHours[key];
                 if (frames === undefined || frames === null) {
                     result.push(new Error(`No unlock schedule for ${key} defined. Use [] to signal no unlock-schedules`));
                     return;
@@ -550,6 +558,10 @@ export class Scheduler implements OnDestroy {
         return errors;
     }
 
+    private static _getMinutes(frame: Time): number {
+        return frame[TimeIndex.Hour]*60 + frame[TimeIndex.Minute];
+    }
+
     
     /**
      * @internal
@@ -563,7 +575,7 @@ export class Scheduler implements OnDestroy {
         let offset = 0;
         while(offset <= 6) {
             const name = Scheduler._getKeyFromWeekDay(current);
-            const config = this.config.unlockSchedules[name];
+            const config = this.config.openingHours[name];
             
             const next = config.find(frame => {
                 let ref = new Date(refDate.getTime());
@@ -641,7 +653,7 @@ export class Scheduler implements OnDestroy {
      * 
      * @param day - The number of the week-day (0-6)
      */
-    private static _getKeyFromWeekDay(day: number): keyof UnlockSchedule {
+    private static _getKeyFromWeekDay(day: number): keyof OpeningHours {
         switch(day) {
             case 0:
                 return 'sunday';
@@ -670,8 +682,8 @@ export class Scheduler implements OnDestroy {
      * 
      * @param day - The name of the weekday (keyof UnlockScheduler)
      */
-    private static _getNumberFromKey(day: keyof UnlockSchedule): number {
-        let keys: (keyof UnlockSchedule)[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    private static _getNumberFromKey(day: keyof OpeningHours): number {
+        let keys: (keyof OpeningHours)[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         return keys.indexOf(day);
     }
 
