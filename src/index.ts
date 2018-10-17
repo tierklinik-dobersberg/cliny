@@ -4,12 +4,16 @@ import {HTTPServerPlugin, HttpServer} from '@jsmon/net/http/server';
 import {Logger, LogLevel, ConsoleAdapter, useLoggingAdapter} from '@jsmon/core';
 import {Runnable} from '@jsmon/cli/interfaces';
 import {DoorPlugin, DoorPluginConfig, BoardConfig, DoorController} from './door';
+import {DatabasePlugin} from './database';
 import {plugins} from 'restify';
 import { readFileSync } from 'fs';
+import { OpeningHoursPlugin } from './openinghours';
 
 @App({
     plugins: [
         DoorPlugin,
+        DatabasePlugin,
+        OpeningHoursPlugin,
         HTTPServerPlugin
     ]
 })
