@@ -1,19 +1,25 @@
-import { Injectable, Logger } from '@jsmon/core';
+import { Injectable, Logger, OnDestroy } from '@jsmon/core';
 import { Database } from '../database';
 import { OpeningHour, TimeFrame, ITimeFrame } from './models';
-import { Repository, Transaction, TransactionRepository, LessThan, MoreThan } from 'typeorm';
+import { Repository, LessThan, MoreThan } from 'typeorm';
+import { Subject, Observable } from 'rxjs';
 
 export interface OpeningHourConfig {
     [day: number]: ITimeFrame[];
 }
 
 @Injectable()
-export class OpeningHoursController {
+export class OpeningHoursController implements OnDestroy {
     public readonly ready: Promise<void>;
     
     private _resolve: () => void;
     private _openingHoursRepo: Repository<OpeningHour>;
     private _timeFramesRepo: Repository<TimeFrame>;
+    private _changes: Subject<OpeningHourConfig> = new Subject();
+
+    get changes(): Observable<OpeningHourConfig> {
+        return this._changes.asObservable();
+    }
     
     constructor(private _db: Database,
                 private _log: Logger) {
@@ -22,6 +28,10 @@ export class OpeningHoursController {
 
         this.ready = new Promise(resolve => this._resolve = resolve);
         this._setup();
+    }
+    
+    onDestroy() {
+        this._changes.complete();
     }
 
     /**
@@ -72,6 +82,8 @@ export class OpeningHoursController {
                 .setStart(t.start)
                 .setOpeningHour({weekDay: weekday} as any)
         );
+        
+        this._changes.next(await this.getConfig());
     }
 
     /**
@@ -86,6 +98,8 @@ export class OpeningHoursController {
         }
         
         await this._timeFramesRepo.delete({start: t.start, end: t.end, openingHour: {weekDay: weekday}});
+        
+        this._changes.next(await this.getConfig());
         return;
     }
     
@@ -98,11 +112,9 @@ export class OpeningHoursController {
         let result: OpeningHourConfig = {};
 
         all.forEach(config => {
-            console.log(`times`, config.times);
             result[config.weekDay] = config.times || [];
         });
 
-        console.log(result);
         return result;
     }
 

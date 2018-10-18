@@ -1,6 +1,7 @@
 import {Injectable, Optional, Inject, Logger, NoopLogAdapter, OnDestroy} from '@jsmon/core';
 import {writeFileSync, readFileSync, existsSync} from 'fs';
 import {Subscription, Subject, Observable} from 'rxjs';
+import {OpeningHourConfig, OpeningHoursController, ITimeFrame} from '../openinghours';
 import {join} from 'path';
 import {Ticker} from './ticker';
 
@@ -27,21 +28,6 @@ export enum TimeIndex {
     Minute = 1,
 }
 
-/**
- * TimeFrame represents a span between a start and end time
- */
-export interface TimeFrame {
-    /**
-     * Beginning of the time frame
-     */
-    from: Time;
-    
-    /**
-     * End of the time frame
-     */
-    to: Time;
-}
-
 export interface Delay {
     before: number;
     after: number;
@@ -51,16 +37,6 @@ export interface Delay {
  * Injection token for the scheduler file path
  */
 export const SCHEDULER_FILE = 'SCHEDULER_FILE';
-
-export interface OpeningHours {
-    monday: TimeFrame[];
-    tuesday: TimeFrame[];
-    wednesday: TimeFrame[];
-    thursday: TimeFrame[];
-    friday: TimeFrame[];
-    saturday: TimeFrame[];
-    sunday: TimeFrame[];
-}
 
 export interface DoorConfig {
     /**
@@ -80,7 +56,7 @@ export interface DoorConfig {
 }
 
 export interface OverwriteConfig {
-    until: Time;
+    until: number;
     state: DoorState;
 }
 
@@ -98,10 +74,6 @@ export interface SchedulerConfig {
         open?: number;
         close?: number;
     }
-
-    // The default schedules to unlock the door based
-    // on a per week-day basis
-    openingHours: OpeningHours;
     
     // If set, the current configuration for `unlockSchedules` is ignored
     // and the door state is set according to the following {@link TimeFrame}
@@ -116,6 +88,7 @@ export class Scheduler implements OnDestroy {
     private _tickerSubscription: Subscription|null = null;
     private readonly _state$: Subject<DoorState> = new Subject();
     private _pause: boolean = false;
+    private _currentConfig: OpeningHourConfig;
     
     private get delayBefore(): number {
         if (!this._config) {
@@ -139,6 +112,7 @@ export class Scheduler implements OnDestroy {
     }
 
     constructor(private _ticker: Ticker,
+                private _openingHours: OpeningHoursController,
                 @Inject(SCHEDULER_FILE) @Optional() private _filePath?: string,
                 private _log: Logger = new Logger(new NoopLogAdapter)) {
                 
@@ -154,7 +128,17 @@ export class Scheduler implements OnDestroy {
         
         this._log.info(`Using configuration from: ${this._filePath}`);
         
-        this._readAndParseConfig();
+        this._openingHours.ready
+            .then(() => {
+                this._readAndParseConfig();
+
+                this._openingHours.getConfig()
+                    .then(config => {
+                        this._currentConfig = config;
+                        this._openingHours.changes
+                            .subscribe(config => this._currentConfig = config);
+                    });
+            });
     }
     
     /**
@@ -182,11 +166,6 @@ export class Scheduler implements OnDestroy {
      * @param [write] - Wether the new configuration file should be written to disk as well
      */
     public setConfig(cfg: SchedulerConfig, write: boolean = false): void {
-        const configErrors = Scheduler.validateSchedulerConfig(cfg);
-        if (configErrors.length > 0) {
-            throw new Error(configErrors.join('; '));
-        }
-
         // If no reconfigureInterval is set default to 5 minutes
         if (!cfg.reconfigureInterval) {
             cfg.reconfigureInterval = 5 * 60;
@@ -221,7 +200,7 @@ export class Scheduler implements OnDestroy {
      * @param until - Time until the overwrite is valid and should be applied
      * @param safeConfig  - Whether or not the config should be safed to disk
      */
-    public setOverwrite(state: DoorState, until: Time, safeConfig: boolean = true): void {
+    public setOverwrite(state: DoorState, until: number, safeConfig: boolean = true): void {
         const copy = this.copyConfig();
 
         copy.currentOverwrite = {
@@ -233,110 +212,12 @@ export class Scheduler implements OnDestroy {
     }
     
     /**
-     * Adds a new unlock time-frame for a given weekday and optionally saves the configuration
-     * file to disk
-     * 
-     * @param day - The number or name of the weekday to add a new time frame to
-     * @param frame - The time frame to add to the weekday
-     * @param [saveConfig] - Wether or not the config should be safed to disk (defaults to true)
-     */
-    public addTimeFrame(day: number|keyof OpeningHours, frame: TimeFrame, saveConfig: boolean = true): void {
-        if (typeof day === 'number') {
-            day = Scheduler._getKeyFromWeekDay(day);
-        }
-        
-        const schedule = this.config.openingHours[day];
-        
-        // we can assert that the must already exist in the scheduler configuration
-        if (schedule === undefined) {
-            throw new Error(`${day} does not exist in config.openingHours`);
-        }
-        
-        // check if there is any time frame that overlaps the new one
-        const fromOverlaps = schedule.some(ref => Scheduler.isInTimeFrame(this.delays, frame.from[TimeIndex.Hour], frame.from[TimeIndex.Hour], ref));
-        const toOverlaps = schedule.some(ref => Scheduler.isInTimeFrame(this.delays, frame.to[TimeIndex.Hour], frame.to[TimeIndex.Minute], ref));
-        
-        if (fromOverlaps || toOverlaps) {
-            throw new Error(`The "${fromOverlaps ? 'from' : 'to'}" time overlaps with an existing time-frame`);
-        }
-        
-        const copy = this.copyConfig();
-        
-        copy.openingHours[day].push(frame);
-        
-        this.setConfig(copy, saveConfig);
-    }
-    
-    /**
-     * Delete a unlock time frame from a given weekday
-     * 
-     * @param day - The number of the name of the weekday
-     * @param timeFrame  - The time frame to delete
-     * @param safeConfig  - Whether or not the new configuration should be safed
-     */
-    public deleteSchedule(day: number|keyof OpeningHours, timeFrame: TimeFrame, safeConfig: boolean = true): void {
-        if (typeof day === 'number') {
-            day = Scheduler._getKeyFromWeekDay(day);
-        }
-        
-        const schedule = this.config.openingHours[day];
-
-        if (schedule === undefined) {
-            throw new Error(`${day} does not exist in config.unlockSchedules`);
-        }
-        
-        if (schedule.length === 0) {
-            return;
-        }        
-        
-        const copy = this.copyConfig();
-        copy.openingHours[day] = copy.openingHours[day].filter(frame => {
-            return !(frame.to[TimeIndex.Hour] === timeFrame.to[TimeIndex.Hour] &&
-                   frame.to[TimeIndex.Minute] === timeFrame.to[TimeIndex.Minute] &&
-                   frame.from[TimeIndex.Hour] === timeFrame.from[TimeIndex.Hour] &&
-                   frame.from[TimeIndex.Minute] === timeFrame.from[TimeIndex.Minute]);
-        });
-
-        this.setConfig(copy, safeConfig);
-    }
-    
-    /**
-     * Removes all unlock schedules from a given weekday and optionally safes the configuration
-     * 
-     * @param day - The number or name of the weekday
-     * @param safeConfig 
-     */
-    public clearWeekdayConfig(day: number|keyof OpeningHours, safeConfig: boolean = true): void {
-        if (typeof day === 'number') {
-            day = Scheduler._getKeyFromWeekDay(day);
-        }
-        
-        const schedule = this.config.openingHours[day];
-
-        // We can assert that there must at least be an empty array
-        if (schedule === undefined) {
-            throw new Error(`${day} does not exist in config.unlockSchedules`)
-        }
-        
-        // Bail out if there is nothing to do
-        if (schedule.length === null) {
-            return;
-        }
-        
-        const copy = this.copyConfig();
-        copy.openingHours[day] = [];
-
-        this.setConfig(copy, safeConfig);
-    }
-    
-    /**
      * Returns a writeable copy of the current configuration
      */
     public copyConfig(): SchedulerConfig {
         return {
             delays: {...this.config.delays},
             reconfigureInterval: this.config.reconfigureInterval,
-            openingHours: { ... this.config.openingHours },
             currentOverwrite: !!this.config.currentOverwrite ? { ...this.config.currentOverwrite } : null
         };
     }
@@ -372,22 +253,23 @@ export class Scheduler implements OnDestroy {
      */
     public getConfigForDate(date: Date): DoorConfig {
         const weekDay = date.getDay();
-        const hour = date.getHours();
-        const minutes = date.getMinutes();
-        const currentTime: Time = [hour, minutes];
+        const minutes = date.getHours() * 60 + date.getMinutes();
         
         let currentState: DoorState = 'lock';
         let until: Date;
 
-        const toDate = (t: Time, dateOffset?: number, minuteOffset: number = 0) => {
+        const toDate = (t: number, dateOffset?: number, minuteOffset: number = 0) => {
             let now = new Date();
+            let minutes = t % 60;
+            let hours = Math.floor(t / 60);
+
             now.setMilliseconds(0),
             now.setSeconds(0);
-            now.setHours(t[TimeIndex.Hour]);
+            now.setHours(hours);
             if (dateOffset !== undefined) {
                 now.setDate(now.getDate() + dateOffset);
             }
-            now.setMinutes(t[TimeIndex.Minute]);
+            now.setMinutes(minutes);
             
             if (minuteOffset != 0) {
                 now = new Date(now.getTime() + minuteOffset * 60 * 1000);
@@ -397,10 +279,10 @@ export class Scheduler implements OnDestroy {
         }
 
         // check if we have a overwrite config and if we are still in it's time-frame
-        if (!!this.config.currentOverwrite && Scheduler.isTimeBefore(currentTime, this.config.currentOverwrite.until)) {
+        if (!!this.config.currentOverwrite && date.getTime() < this.config.currentOverwrite.until) {
             currentState = this.config.currentOverwrite.state;
 
-            until = toDate(this.config.currentOverwrite.until);
+            until = new Date(this.config.currentOverwrite.until);
         } else {
             // If we still have a overwrite but are after it's until time,
             // clear it
@@ -411,14 +293,14 @@ export class Scheduler implements OnDestroy {
                 this.setConfig(copy, true);
             }
             
-            const currentDayConfig = this.config.openingHours[Scheduler._getKeyFromWeekDay(weekDay)];
+            const currentDayConfig = this._currentConfig[weekDay];
 
             // We now have to check a set of "unlock" time-frames and if we are in the middle of one
-            const currentTimeFrame = currentDayConfig.find(frame => Scheduler.isInTimeFrame(this.delays, hour, minutes, frame));
+            const currentTimeFrame = currentDayConfig.find(frame => Scheduler.isInTimeFrame(this.delays, minutes, frame));
 
             if (!!currentTimeFrame) {
                 currentState = 'unlock';
-                until = toDate(currentTimeFrame.to, 0, this.delays.after);
+                until = toDate(currentTimeFrame.end, 0, this.delays.after);
             } else {
                 currentState = 'lock';
                 const next = this._getNextFrame(date);
@@ -427,7 +309,7 @@ export class Scheduler implements OnDestroy {
                     until = null as any;
                 } else {
                     let [dayOffset, untilTime] = next;
-                    until = toDate(untilTime.from, dayOffset, -this.delays.before);
+                    until = toDate(untilTime.start, dayOffset, -this.delays.before);
                 }
             }
         }
@@ -447,19 +329,6 @@ export class Scheduler implements OnDestroy {
     public onDestroy() {
         this._state$.complete();
     }
-    
-    /**
-     * Checks wether a time (t1) is before another time (t2)
-     * 
-     * @param t1 - The time to check if it's before t2
-     * @param t2 - The reference time
-     */
-    public static isTimeBefore(t1: Time, t2: Time): boolean {
-        const min1 = Scheduler._toTodaysTimestamp(t1);
-        const min2 = Scheduler._toTodaysTimestamp(t2);
-
-        return min1 < min2;
-    }
 
 
     /**
@@ -469,99 +338,12 @@ export class Scheduler implements OnDestroy {
      * @param minute - The current minute
      * @param frame  - The time frame to check against
      */
-    public static isInTimeFrame(delays: Delay, hour: number, minute: number, frame: TimeFrame): boolean {
-        const fromMinutes = Scheduler._getMinutes(frame.from) + delays.before;
-        const afterMinutes = Scheduler._getMinutes(frame.to) + delays.after;
-        const refMinutes = Scheduler._getMinutes([hour, minute]);
+    public static isInTimeFrame(delays: Delay, minutes: number, frame: ITimeFrame): boolean {
+        const fromMinutes = frame.start - delays.before;
+        const afterMinutes = frame.end + delays.after;
 
-        return refMinutes >= fromMinutes && refMinutes < afterMinutes;
+        return minutes >= fromMinutes && minutes < afterMinutes;
     }
-    
-    /**
-     * Validates a scheduler configuration and returns a list of errors if any
-     * 
-     * @param config - The scheduler configuration to validate
-     */
-    public static validateSchedulerConfig(config: SchedulerConfig): Error[] {
-        let result: Error[] = [];
-        
-        if (!config.openingHours) {
-            result.push(new Error(`Missing "unlockSchedules" configuration`));
-        } else {
-            const days: (keyof OpeningHours)[]= [
-                'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
-            ];
-            
-            days.forEach(key => {
-                const frames = config.openingHours[key];
-                if (frames === undefined || frames === null) {
-                    result.push(new Error(`No unlock schedule for ${key} defined. Use [] to signal no unlock-schedules`));
-                    return;
-                }
-                
-                frames.forEach(frame => {
-                    const frameErrors = Scheduler.isValidTimeFrame(frame);
-                    if (!!frameErrors) {
-                        result = result.concat(...frameErrors);
-                    }
-                });
-            });
-        }
-
-        return result;
-    }
-    
-    /**
-     * Validates the times and the time-span of a {@link TimeFrame} for correctness
-     * 
-     * @param frame - The timeframe to validate
-     */
-    public static isValidTimeFrame(frame: TimeFrame): Error[]|null {
-        let errors: Error[] = [];
-        
-        errors = errors.concat(...Scheduler.validateTime(frame.from, 'from'));
-        errors = errors.concat(...Scheduler.validateTime(frame.to, 'to'));
-        
-        // Make sure that to is not before from
-        
-        const start = Scheduler._toTodaysTimestamp(frame.from);
-        const end = Scheduler._toTodaysTimestamp(frame.to);
-
-        if (end < start) {
-            errors.push(new Error(`invalid time frame. "to" MUST NOT be before "from"`));
-        }
-        
-        if (end === start) { 
-            errors.push(new Error(`invalid time frame. "to" MUST NOT be equal to "from"`));
-        }
-        
-        return errors.length === 0 ? null : errors;
-    }
-    
-    /**
-     * Validates a {@link Time} and returns a set of errors found
-     * 
-     * @param time - The time to validate
-     * @param key  - The key to use for error messages (i.e: `"TimeFrame.${key}[hour|minute] ..."`)
-     */
-    public static validateTime(time: Time, key: string): Error[] {
-        const errors: Error[] = [];
-        const [hour, minute] = [time[TimeIndex.Hour], time[TimeIndex.Minute]];
-
-        if (hour < 0) {
-            errors.push(new Error(`TimeFrame.${key}[hour] MUST be positive; got "${hour}"`));
-        }
-        if (minute < 0) {
-            errors.push(new Error(`TimeFrame.${key}[minute] MUST be positive; got "${minute}"`));
-        }
-        
-        return errors;
-    }
-
-    private static _getMinutes(frame: Time): number {
-        return frame[TimeIndex.Hour]*60 + frame[TimeIndex.Minute];
-    }
-
     
     /**
      * @internal
@@ -570,18 +352,16 @@ export class Scheduler implements OnDestroy {
      * 
      * @param refDate - The reference date to use
      */
-    private _getNextFrame(refDate: Date): [number, TimeFrame]|null {
+    private _getNextFrame(refDate: Date): [number, ITimeFrame]|null {
         let current = refDate.getDay();
         let offset = 0;
         while(offset <= 6) {
-            const name = Scheduler._getKeyFromWeekDay(current);
-            const config = this.config.openingHours[name];
+            const config = this._currentConfig[current];
             
             const next = config.find(frame => {
                 let ref = new Date(refDate.getTime());
                 const from = Scheduler._dateFromPreset({
-                    minutes: frame.from[TimeIndex.Minute], 
-                    hours: frame.from[TimeIndex.Hour], 
+                    minutes: frame.start,
                     offsetDays: offset, 
                     refDate: ref
                 });
@@ -600,18 +380,6 @@ export class Scheduler implements OnDestroy {
         return null;
     }
 
-    
-    /**
-     * @internal 
-     *
-     * Converts a time into an absolute number of minutes (starting form 00:00)
-     * 
-     * @param time - The time to convert into minutes
-     */
-    private static _toTodaysTimestamp(time: Time): number {
-        return Scheduler._dateFromPreset({minutes: time[TimeIndex.Minute], hours: time[TimeIndex.Hour]}).getTime();
-    }
-
     /**
      * Returns a {@link Date} with preset hours and minutes, a possible day offset and a reference
      * date. Without any arguments, this function will return today at 00:00. 
@@ -624,67 +392,28 @@ export class Scheduler implements OnDestroy {
      */
     private static _dateFromPreset({
         minutes,
-        hours,
         offsetDays,
         refDate
     }: {
         minutes?: number;
-        hours?: number;
         offsetDays?: number;
         refDate?: Date
     }): Date {
+        if (minutes === undefined) {
+            minutes = 0;
+        }
         
         let result = !!refDate ? new Date(refDate.getTime()) : new Date();
+        let min = minutes % 60;
+        let hours = Math.floor(minutes / 60)
         
         result.setDate(result.getDate() + (offsetDays || 0));
         result.setHours(hours || 0);
-        result.setMinutes(minutes || 0);
+        result.setMinutes(min || 0);
         result.setSeconds(0);
         result.setMilliseconds(0);
         
         return result;
-    }
-    
-    /**
-     * @internal
-     * 
-     * Returns the day key for {@link UnlockSchedule} based on the
-     * week-day number
-     * 
-     * @param day - The number of the week-day (0-6)
-     */
-    private static _getKeyFromWeekDay(day: number): keyof OpeningHours {
-        switch(day) {
-            case 0:
-                return 'sunday';
-            case 1:
-                return 'monday';
-            case 2:
-                return 'tuesday';
-            case 3:
-                return 'wednesday';
-            case 4:
-                return 'thursday';
-            case 5:
-                return 'friday';
-            case 6:
-                return 'saturday';
-            default:
-                throw new Error(`Invalid week day number: ${day}`);
-        }
-    }
-    
-    /**
-     * @internal
-     * 
-     * Returns the number of the weekday (sunday = 0, saturday = 6) based on the
-     * name of the weekday as defined in the {@link UnlockSchedule}
-     * 
-     * @param day - The name of the weekday (keyof UnlockScheduler)
-     */
-    private static _getNumberFromKey(day: keyof OpeningHours): number {
-        let keys: (keyof OpeningHours)[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        return keys.indexOf(day);
     }
 
     /**

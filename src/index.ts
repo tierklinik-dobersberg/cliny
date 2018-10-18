@@ -8,13 +8,14 @@ import {DatabasePlugin} from './database';
 import {plugins} from 'restify';
 import { readFileSync } from 'fs';
 import { OpeningHoursPlugin } from './openinghours';
-
+import {UserPlugin} from './users';
 @App({
     plugins: [
         DoorPlugin,
         DatabasePlugin,
         OpeningHoursPlugin,
-        HTTPServerPlugin
+        HTTPServerPlugin,
+        UserPlugin,
     ]
 })
 export class Cliny {
@@ -28,7 +29,9 @@ export class Cliny {
             
         this._httpServer.server.use(plugins.bodyParser());
         
-        this._doorController.setupRoutes(this._httpServer);
+        DoorPlugin.setupRoutes('/door', this._httpServer);
+        OpeningHoursPlugin.setupRoutes('/openinghours', this._httpServer);
+        UserPlugin.setupRoutes('/users', this._httpServer);
 
         // Start serving
         this._logger.info(`Listening on ${this._main.port}`);

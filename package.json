@@ -33,6 +33,8 @@
     "@jsmon/cli": "0.0.1",
     "@jsmon/core": "0.0.1",
     "@jsmon/net": "0.0.1",
+    "@types/bcrypt-nodejs": "0.0.30",
+    "bcrypt-nodejs": "0.0.3",
     "figlet": "^1.2.1",
     "jsonpath": "^1.0.0",
     "onoff": "^3.2.2",

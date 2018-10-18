@@ -4,6 +4,7 @@ import {BOARD_CONFIG, BoardConfig, BoardController, DummyBoardController} from '
 import {DoorController} from './door.controller';
 import {API, NotOpenMiddleware} from './server';
 import {Ticker} from './ticker';
+import {HttpServer} from '@jsmon/net/http/server';
 
 export interface DoorPluginConfig {
     useDummyBoard?: boolean;
@@ -48,5 +49,9 @@ export class DoorPlugin {
         }
         
         return providers;
+    }
+
+    static setupRoutes(prefix: string, srv: HttpServer) {
+        srv.mount(prefix, API);
     }
 }

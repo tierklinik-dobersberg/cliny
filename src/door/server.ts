@@ -54,41 +54,6 @@ export class API {
         next();
     }
     
-    @Post('/config/:weekday')
-    addFrame(req: Request, res: Response, next: Next) {
-        try {
-            const frame = req.body;
-            
-            this._scheduler.addTimeFrame(req.params.weekday, frame, true);
-            res.send(204);
-
-            next();
-            return;
-        } catch (err) {
-            next(err);
-        }
-    }
-    
-    @Delete('/config/:weekday')
-    deleteTimeframe(req: Request, res: Response, next: Next) {
-        try {
-            const frame = req.body;
-            
-            if (frame === null) {
-                this._scheduler.clearWeekdayConfig(req.params.weekday, true);
-            } else {
-                this._scheduler.deleteSchedule(req.params.weekday, frame, true);
-            }
-
-            res.send(204);
-            
-            next();
-            return;
-        } catch(err) {
-            next(err);
-        }
-    }
-
     @Post('/open')
     async open(req: Request, res: Response, next: Next) {
         try {

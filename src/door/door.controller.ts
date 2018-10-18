@@ -1,15 +1,12 @@
 import {Injectable, Logger} from '@jsmon/core';
-import {HttpServer} from '@jsmon/net/http/server';
-import {API} from './server';
 import {BoardController} from './board';
 import {Scheduler} from './scheduler';
-import { OpeningHoursController, OpeningHourConfig, ITimeFrame } from '../openinghours';
+import { OpeningHoursController } from '../openinghours';
 
 @Injectable()
 export class DoorController {
     constructor(private _log: Logger,
                 private _scheduler: Scheduler,
-                private _openingHours: OpeningHoursController,
                 private _board: BoardController) {
         this._log = this._log.createChild('door-controller');
         
@@ -17,11 +14,6 @@ export class DoorController {
     }
     
     private async _runServer() {
-        await this._openingHours.ready;
-        
-
-        await this._openingHours.addTimeFrame(0, {start: 8*60, end: 12*60});
-
         let running = false;
         this._scheduler.state
             .subscribe(async state => {
@@ -50,9 +42,5 @@ export class DoorController {
                 
                 running = false;
             });
-    }
-    
-    setupRoutes(server: HttpServer): void {
-        server.mount(API);
     }
 }
