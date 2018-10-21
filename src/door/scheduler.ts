@@ -191,6 +191,8 @@ export class Scheduler implements OnDestroy {
         copy.currentOverwrite = null;
 
         this.setConfig(copy, safeConfig);
+        const desiredState = this.getConfigForDate(new Date());
+        this._state$.next(desiredState.state);
     }
     
     /**
@@ -209,6 +211,7 @@ export class Scheduler implements OnDestroy {
         };
         
         this.setConfig(copy, safeConfig);
+        this._state$.next(state);
     }
     
     /**
