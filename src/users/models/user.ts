@@ -36,7 +36,7 @@ export class User implements IUser {
     @Column()
     enabled: boolean;
     
-    @Column()
+    @Column({nullable: true})
     color: string;
     
     @Column({type: 'text', nullable: true, default: null})
