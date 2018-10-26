@@ -1,5 +1,6 @@
-import {Entity, PrimaryColumn, Column} from 'typeorm';
-import {hashSync} from 'bcrypt-nodejs';
+import { hashSync } from 'bcrypt-nodejs';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn, ManyToMany } from 'typeorm';
+import { RostaSchedule } from '../../rosta/models/schedule';
 
 export type UserType = 'assistent' | 'doctor' | 'other';
 export type Role = 'admin' | 'user';
@@ -11,6 +12,8 @@ export interface IUser {
     hoursPerWeek: number;
     enabled: boolean;
     icon: string|null;
+    color: string;
+    rostaSchedules: RostaSchedule[];
 }
 
 @Entity()
@@ -33,8 +36,20 @@ export class User implements IUser {
     @Column()
     enabled: boolean;
     
+    @Column()
+    color: string;
+    
     @Column({type: 'text', nullable: true, default: null})
     icon: string|null;
+    
+    @ManyToMany(() => RostaSchedule, schedule => schedule.users)
+    @JoinColumn()
+    rostaSchedules: RostaSchedule[];
+    
+    setColor(color: string): this {
+        this.color = color;
+        return this;
+    }
 
     setName(name: string): this {
         this.username = name;
@@ -68,6 +83,11 @@ export class User implements IUser {
 
     setEnabled(enabled: boolean): this {
         this.enabled = enabled;
+        return this;
+    }
+
+    setRostaSchedules(schedules: RostaSchedule[]): this {
+        this.rostaSchedules = schedules;
         return this;
     }
 }

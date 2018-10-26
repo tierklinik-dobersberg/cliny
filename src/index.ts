@@ -1,20 +1,21 @@
-import {Injector, App, Bootstrap, forwardRef, Inject} from '@jsmon/core';
-import {Command, run, Option} from '@jsmon/cli';
-import {HTTPServerPlugin, HttpServer} from '@jsmon/net/http/server';
-import {Logger, LogLevel, ConsoleAdapter, useLoggingAdapter} from '@jsmon/core';
-import {Runnable} from '@jsmon/cli/interfaces';
-import {DoorPlugin, DoorPluginConfig, BoardConfig, DoorController} from './door';
-import {DatabasePlugin} from './database';
-import {plugins} from 'restify';
+import { Command, Option, run } from '@jsmon/cli';
+import { Runnable } from '@jsmon/cli/interfaces';
+import { App, Bootstrap, ConsoleAdapter, forwardRef, Inject, Injector, Logger, LogLevel, useLoggingAdapter } from '@jsmon/core';
+import { HttpServer, HTTPServerPlugin } from '@jsmon/net/http/server';
 import { readFileSync } from 'fs';
+import { plugins } from 'restify';
+import { DatabasePlugin } from './database';
+import { BoardConfig, DoorController, DoorPlugin, DoorPluginConfig } from './door';
 import { OpeningHoursPlugin } from './openinghours';
-import {UserPlugin} from './users';
+import { RostaPlugin } from './rosta';
+import { UserPlugin } from './users';
 @App({
     plugins: [
         DoorPlugin,
         DatabasePlugin,
         OpeningHoursPlugin,
         HTTPServerPlugin,
+        RostaPlugin,
         UserPlugin,
     ]
 })
@@ -28,10 +29,12 @@ export class Cliny {
         this._main = main;                 
             
         this._httpServer.server.use(plugins.bodyParser());
+        this._httpServer.server.use(plugins.queryParser());
         
         DoorPlugin.setupRoutes('/door', this._httpServer);
         OpeningHoursPlugin.setupRoutes('/openinghours', this._httpServer);
         UserPlugin.setupRoutes('/users', this._httpServer);
+        RostaPlugin.setupRoutes('/rosta', this._httpServer);
 
         // Start serving
         this._logger.info(`Listening on ${this._main.port}`);

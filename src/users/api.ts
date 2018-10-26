@@ -1,8 +1,8 @@
-import {Injectable, Logger} from '@jsmon/core';
-import {UserController} from './user.controller';
-import {Get, Post, Put, Delete} from '@jsmon/net/http/server';
-import {Request, Response, Next} from 'restify'
+import { Injectable, Logger } from '@jsmon/core';
+import { Delete, Get, Post, Put } from '@jsmon/net/http/server';
+import { Next, Request, Response } from 'restify';
 import { IUser } from './models';
+import { UserController } from './user.controller';
 
 @Injectable()
 export class UserAPI {

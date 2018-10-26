@@ -319,8 +319,8 @@ export class Scheduler implements OnDestroy {
         
         return {
             state: currentState,
-            until: until!.getTime(),
-            untilISO: until!.toISOString(),
+            until: !!until ? until!.getTime() : null as any,
+            untilISO: !!until ? until!.toISOString() : '',
         };
     }
     
@@ -359,7 +359,12 @@ export class Scheduler implements OnDestroy {
         let current = refDate.getDay();
         let offset = 0;
         while(offset <= 6) {
-            const config = this._currentConfig[current];
+            const config = this._currentConfig[current + 1];
+            
+            if (!config) {
+                this._log.warn(`No configuration for ${current}`);
+                break;
+            }
             
             const next = config.find(frame => {
                 let ref = new Date(refDate.getTime());

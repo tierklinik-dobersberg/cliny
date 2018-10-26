@@ -1,12 +1,13 @@
-import {Injectable, Inject, forwardRef} from '@jsmon/core';
+import {Injectable, Inject, forwardRef, Logger} from '@jsmon/core';
 import {Use, Get, Post, Delete, Put, HTTPServerPlugin, Middleware} from '@jsmon/net/http/server';
 import {Request, Response, Next} from 'restify';
 import {Scheduler} from './scheduler';
 import {BoardController} from './board';
 
 export class NotOpenMiddleware implements Middleware<never> {
-    constructor(@Inject(forwardRef(() => API)) private _api: any) {
-
+    constructor(@Inject(forwardRef(() => API)) private _api: any,
+                private _log: Logger) {
+        this._log = this._log.createChild('api:door');
     }
     
     handle(options: never, req: Request, res: Response, next: Next) {

@@ -148,7 +148,7 @@ export class OpeningHoursController implements OnDestroy {
             this._log.info(`Need to insert missing days`);
             let toCreate: OpeningHour[] = [];
 
-            for (let i = 0; i < 7; i++) {
+            for (let i = 1; i < 8; i++) {
                 if (all.some(o => o.weekDay === i) === false) {
                     let h = new OpeningHour();
                     h.weekDay = i;

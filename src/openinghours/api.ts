@@ -7,7 +7,9 @@ import {Request, Response, Next} from 'restify';
 @Injectable()
 export class OpeningHoursAPI {
     constructor(private _log: Logger,
-                private _hoursController: OpeningHoursController) {}
+                private _hoursController: OpeningHoursController) {
+        this._log = this._log.createChild('api:openinghours');
+    }
     
     @Get('/config')
     async getOpeningHoursConfig(req: Request, res: Response, next: Next) {

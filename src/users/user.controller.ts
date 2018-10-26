@@ -1,7 +1,7 @@
-import {Injectable, Logger} from '@jsmon/core';
-import {Repository} from 'typeorm';
-import {Database} from '../database';
-import {IUser, User} from './models';
+import { Injectable, Logger } from '@jsmon/core';
+import { Repository } from 'typeorm';
+import { Database } from '../database';
+import { IUser, User } from './models';
 
 @Injectable()
 export class UserController {
@@ -15,7 +15,7 @@ export class UserController {
 
     constructor(private _log: Logger,
                 private _database: Database) {
-        this._log = this._log.createChild('user-controller');
+        this._log = this._log.createChild('db:users');
         this._ready = new Promise((resolve) => this._resolve = resolve);
         
         this._database.ready
@@ -37,6 +37,7 @@ export class UserController {
          .setRole(user.role)
          .setType(user.type)
          .setPassword(password)
+         .setColor(user.color)
          .setEnabled(user.enabled);
         
         await this._repo.save(u);
@@ -67,7 +68,9 @@ export class UserController {
             icon: user.icon,
             role: user.role,
             type: user.type,
+            color: user.color,
             enabled: user.enabled,
+            rostaSchedules: user.rostaSchedules || [],
         };
     }
     
@@ -79,7 +82,9 @@ export class UserController {
             icon: user.icon,
             role: user.role,
             type: user.type,
+            color: user.color,
             enabled: user.enabled,
+            rostaSchedules: user.rostaSchedules || [],
         }));
     }
 }

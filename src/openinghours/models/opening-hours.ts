@@ -16,8 +16,6 @@ export class OpeningHour {
      */
     static weekDayFromString(day: string) {
         switch (day) {
-            case 'sunday':
-                return 0;
             case 'monday':
                 return 1;
             case 'tuesday':
@@ -30,6 +28,8 @@ export class OpeningHour {
                 return 5;
             case 'saturday':
                 return 6;
+            case 'sunday':
+                return 7;
             default:
                 return NaN;
         }
