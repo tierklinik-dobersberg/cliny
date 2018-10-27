@@ -26,6 +26,7 @@
     "@types/onoff": "0.0.28",
     "@types/restify": "^7.2.5",
     "@types/restify-cookies": "^0.2.3",
+    "@types/restify-errors": "^4.3.3",
     "jest": "^23.6.0",
     "ts-jest": "^23.10.3",
     "tslint": "^5.11.0",

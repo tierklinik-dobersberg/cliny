@@ -23,7 +23,7 @@ const CookieParser = require('restify-cookies');
         HTTPServerPlugin,
         RostaPlugin,
         UserPlugin,
-    ]
+    ],
 })
 export class Cliny {
     private _main: ClinyBootstrap;

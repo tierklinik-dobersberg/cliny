@@ -4,6 +4,7 @@ import { Database } from '../database';
 import { IUser, User } from './models';
 import { compareSync } from 'bcrypt-nodejs';
 import { AuthToken } from './models/token';
+import { NotFoundError } from 'restify-errors';
 
 @Injectable()
 export class UserController {
@@ -113,6 +114,8 @@ export class UserController {
     async checkUserPassword(username: string, password: string): Promise<boolean> {
         const user = await this._userRepo.findOne(username);
         if (!user) {
+            // Do not throw NotFoundError here because this would allow
+            // username enumeration and assist in attacks
             return false;
         }
         
@@ -128,7 +131,7 @@ export class UserController {
     async updateUserPassword(username: string, newPassword: string) {
         const user = await this._userRepo.findOne(username);
         if (!user) {
-            throw new Error(`Unknown user`);
+            throw new NotFoundError(`User ${username} not found`);
         }
         
         user.setPassword(newPassword);
@@ -141,7 +144,7 @@ export class UserController {
      * 
      * @param username - The name of the user
      */
-    async generateAuthToken(username: string): Promise<string> {
+    async generateTokenForUser(username: string): Promise<string> {
         const token = Math.random().toString(36).substring(2, 15) +
                       Math.random().toString(36).substring(2, 15) +
                       Math.random().toString(36).substring(2, 15);
@@ -198,7 +201,7 @@ export class UserController {
         let user = await this._userRepo.findOne(name)
         
         if (!user) {
-            return null;
+            throw new NotFoundError(`User ${name} not found`);
         }
         
         return {

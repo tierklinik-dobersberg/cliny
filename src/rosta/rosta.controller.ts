@@ -68,10 +68,7 @@ export class RostaController {
     }
     
     async deleteSchedule(id: number) {
-        await this._rostaSchedulesRepo.remove({id: id} as any)
-            .catch(err => {
-                console.error(err);
-            })
+        await this._rostaSchedulesRepo.remove({id: id} as any);
     }
     
     async getSchedulesBetween(start: string|number|Date|moment.Moment, end: string|number|Date|moment.Moment): Promise<IRosta[]> {

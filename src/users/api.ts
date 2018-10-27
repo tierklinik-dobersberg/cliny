@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@jsmon/core';
 import { Delete, Get, Post, Put } from '@jsmon/net/http/server';
 import { Next, Request, Response } from 'restify';
+import { BadRequestError, ForbiddenError, NotAuthorizedError } from 'restify-errors';
 import { Authenticated, CLINY_COOKIE, getAuthenticatedUser, RoleRequired } from './auth';
 import { IUser } from './models';
 import { UserController } from './user.controller';
@@ -34,7 +35,7 @@ export class UserAPI {
             if (await this._userCtrl.checkUserPassword(username, password)) {
                 this._log.info(`User ${username} authenticated successfully`);
                 
-                const token = await this._userCtrl.generateAuthToken(username);
+                const token = await this._userCtrl.generateTokenForUser(username);
                 const user = await this._userCtrl.getUser(username);
 
                 res.setCookie(CLINY_COOKIE, token, {httpOnly: true, path: '/'});
@@ -45,8 +46,21 @@ export class UserAPI {
                 // Make sure we clean any authentication cookie available
                 res.setCookie(CLINY_COOKIE, '', {expires: new Date(1)});
                 
-                res.send(401, 'Invalid username or password');
+                next(new NotAuthorizedError('Invalid username or password'));
+                return;
             }
+            next();
+        } catch (err) {
+            next(err);
+        }
+    }
+    
+    @Get('/:username')
+    @RoleRequired('admin')
+    async getUser(req: Request, res: Response, next: Next) {
+        try {
+            let user = await this._userCtrl.getUser(req.params.username);
+            res.send(200, user);
             next();
         } catch (err) {
             next(err);
@@ -62,8 +76,7 @@ export class UserAPI {
 
         let err = this._validateUser(user);
         if (!!err) {
-            res.send(400, err);
-            next(false);
+            next( new BadRequestError() );
             return;
         }
         
@@ -84,8 +97,7 @@ export class UserAPI {
         const authenticated = getAuthenticatedUser(req)!;
 
         if (authenticated.role !== 'admin' && authenticated.username !== req.params.username) {
-            res.send(403, 'Not allowed');
-            next(false);
+            next( new ForbiddenError() );
             return;
         }
 
