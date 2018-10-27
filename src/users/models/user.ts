@@ -13,7 +13,7 @@ export interface IUser {
     enabled: boolean;
     icon: string|null;
     color: string;
-    rostaSchedules: RostaSchedule[];
+    rostaSchedules?: RostaSchedule[];
 }
 
 @Entity()

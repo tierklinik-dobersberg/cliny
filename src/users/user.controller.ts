@@ -26,8 +26,29 @@ export class UserController {
     private async _setup() {
         this._repo = this._database.getRepository(User);
         
+        await this._ensureAdminUser();
+        
         this._log.info(`User database initialized`);
         this._resolve();
+    }
+    
+    private async _ensureAdminUser() {
+        const count = await this._repo.count({role: 'admin'});
+        
+        if (count === 0) {
+            const password = Math.random().toString(36).substring(2, 15);            
+            await this.createUser({
+                username: 'admin',
+                color: '',
+                enabled: true,
+                hoursPerWeek: 0,
+                icon: '',
+                role: 'admin',                
+                type: 'other'
+            }, password);
+            
+            this._log.info(`Created administration user with name 'admin' and password ${password}`);
+        }
     }
     
     /**
