@@ -4,6 +4,7 @@ import {Subscription, Subject, Observable} from 'rxjs';
 import {OpeningHourConfig, OpeningHoursController, ITimeFrame} from '../openinghours';
 import {join} from 'path';
 import {Ticker} from './ticker';
+import moment from 'moment';
 
 /**
  * Possible door states
@@ -255,7 +256,7 @@ export class Scheduler implements OnDestroy {
      * @param date - The date to retrieve the current door state for
      */
     public getConfigForDate(date: Date): DoorConfig {
-        const weekDay = date.getDay();
+        const weekDay = moment(date).isoWeekday();
         const minutes = date.getHours() * 60 + date.getMinutes();
         
         let currentState: DoorState = 'lock';
@@ -284,8 +285,9 @@ export class Scheduler implements OnDestroy {
         // check if we have a overwrite config and if we are still in it's time-frame
         if (!!this.config.currentOverwrite && date.getTime() < this.config.currentOverwrite.until) {
             currentState = this.config.currentOverwrite.state;
-
             until = new Date(this.config.currentOverwrite.until);
+            
+            this._log.info(`Using overwrite config. State should be ${currentState} until ${until}`);
         } else {
             // If we still have a overwrite but are after it's until time,
             // clear it
@@ -304,15 +306,19 @@ export class Scheduler implements OnDestroy {
             if (!!currentTimeFrame) {
                 currentState = 'unlock';
                 until = toDate(currentTimeFrame.end, 0, this.delays.after);
+                this._log.info(`Door state '${currentState}' configured from time-frame ${currentTimeFrame.start} - ${currentTimeFrame.end} until ${until}`)
             } else {
                 currentState = 'lock';
                 const next = this._getNextFrame(date);
                 
+                
                 if (next === null) {
+                    this._log.warn(`No active time frame. Current door state is 'locked' but failed to find the next active frame`);
                     until = null as any;
                 } else {
                     let [dayOffset, untilTime] = next;
                     until = toDate(untilTime.start, dayOffset, -this.delays.before);
+                    this._log.info(`No active time frame. Current door state is 'locked' until ${until}`);
                 }
             }
         }
@@ -356,10 +362,10 @@ export class Scheduler implements OnDestroy {
      * @param refDate - The reference date to use
      */
     private _getNextFrame(refDate: Date): [number, ITimeFrame]|null {
-        let current = refDate.getDay();
+        let current = moment(refDate).isoWeekday();
         let offset = 0;
-        while(offset <= 6) {
-            const config = this._currentConfig[current + 1];
+        while(offset <= 7) {
+            const config = this._currentConfig[current];
             
             if (!config) {
                 this._log.warn(`No configuration for ${current}`);
@@ -381,7 +387,11 @@ export class Scheduler implements OnDestroy {
                 return [offset, next];
             }
 
-            current = (current + 1) % 7;
+            current = current + 1;
+            if (current > 7) {
+                current = 1;
+            }
+            
             offset++;
         }
         
