@@ -113,7 +113,7 @@ export class UserController {
     async checkUserPassword(username: string, password: string): Promise<boolean> {
         const user = await this._userRepo.findOne(username);
         if (!user) {
-            throw new Error('Unknown user');
+            return false;
         }
         
         return compareSync(password, user.password)

@@ -36,9 +36,10 @@ export class UserAPI {
                 this._log.info(`User ${username} authenticated successfully`);
                 
                 const token = await this._userCtrl.generateAuthToken(username);
+                const user = await this._userCtrl.getUser(username);
 
-                res.setCookie(CLINY_COOKIE, token, {httpOnly: true});
-                res.send(200);
+                res.setCookie(CLINY_COOKIE, token, {httpOnly: true, path: '/'});
+                res.send(200, user);
             } else {
                 this._log.info(`Failed to authenticate user ${username}`);
 
