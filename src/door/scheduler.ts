@@ -92,14 +92,14 @@ export class Scheduler implements OnDestroy {
     private _currentConfig: OpeningHourConfig;
     
     private get delayBefore(): number {
-        if (!this._config) {
+        if (!this._config || !this._config.delays) {
             return 0;
         }
         return this.config.delays.open || 0;
     } 
     
     private get delayAfter(): number {
-        if (!this._config) {
+        if (!this._config || !this._config.delays) {
             return 0;
         }
         return this.config.delays.close || 0;
