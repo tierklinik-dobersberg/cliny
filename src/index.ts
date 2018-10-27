@@ -9,6 +9,12 @@ import { BoardConfig, DoorController, DoorPlugin, DoorPluginConfig } from './doo
 import { OpeningHoursPlugin } from './openinghours';
 import { RostaPlugin } from './rosta';
 import { UserPlugin } from './users';
+import 'restify-cookies';
+
+// Unfortunately the typedefinitions for restify-cookies lacks the CookieParser
+// default export (e.g. there's no "parse" method)
+const CookieParser = require('restify-cookies');
+
 @App({
     plugins: [
         DoorPlugin,
@@ -30,6 +36,7 @@ export class Cliny {
             
         this._httpServer.server.use(plugins.bodyParser());
         this._httpServer.server.use(plugins.queryParser());
+        this._httpServer.server.use(CookieParser.parse)
         
         DoorPlugin.setupRoutes('/door', this._httpServer);
         OpeningHoursPlugin.setupRoutes('/openinghours', this._httpServer);
@@ -100,6 +107,13 @@ export class ClinyBootstrap implements Runnable {
         argType: 'boolean'
     })
     public readonly useDummyBoard: boolean = false;
+    
+    @Option({
+        name: 'sync-db',
+        description: 'Whether or not the database schema should be synced',
+        argType:'boolean'
+    })
+    public readonly syncDb: boolean = false;
 
 
     constructor(private _injector: Injector,
@@ -111,8 +125,6 @@ export class ClinyBootstrap implements Runnable {
             this._log.setLogLevel(this.logLevel);
             this._log.debug(`setting log-level to ${this.logLevel}`);
         }
-        
-        this._log = this._log.createChild(`door`);
         
         const doorConfig: DoorPluginConfig = {};
 
@@ -135,7 +147,12 @@ export class ClinyBootstrap implements Runnable {
             }
         }
         
-        const appInjector = this._injector.createChild(DoorPlugin.forConfig(doorConfig));
+        const appInjector = this._injector.createChild([
+            ...DoorPlugin.forConfig(doorConfig),
+            DatabasePlugin.useConfig({
+                sync: this.syncDb,
+            })
+        ]);
         
         const app = new Bootstrap()
             .withInjector(appInjector)

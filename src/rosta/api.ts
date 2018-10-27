@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@jsmon/core';
 import { RostaController } from './rosta.controller';
 import { Get, Post, Delete, Put } from '@jsmon/net/http/server';
 import { Request, Response, Next } from 'restify';
+import { Authenticated, RoleRequired } from '../users';
 
 @Injectable()
 export class RostaAPI {
@@ -11,6 +12,7 @@ export class RostaAPI {
     }
 
     @Get('/schedules')
+    @Authenticated()
     async getSchedules(req: Request, res: Response, next: Next) {
         try {
             let from = req.query.from || -1;
@@ -35,6 +37,7 @@ export class RostaAPI {
     }
     
     @Post('/schedules')
+    @RoleRequired('admin')
     async createSchedule(req: Request, res: Response, next: Next) {
         try {
             const start = req.body.start;
@@ -54,6 +57,7 @@ export class RostaAPI {
     }
     
     @Put('/schedules/:id')
+    @RoleRequired('admin')
     async editSchedule(req: Request, res: Response, next: Next) {
         try {
             const start = req.body.start;
@@ -72,6 +76,7 @@ export class RostaAPI {
     }
     
     @Delete('/schedules/:id')
+    @RoleRequired('admin')
     async deleteSchedule(req: Request, res: Response, next: Next) {
         try {
             await this._controller.deleteSchedule(+req.params.id);

@@ -3,6 +3,7 @@ import {Get, Put, Delete} from '@jsmon/net/http/server';
 import {OpeningHoursController, OpeningHourConfig} from './openinghours.controller';
 import {ITimeFrame, OpeningHour} from './models';
 import {Request, Response, Next} from 'restify';
+import { RoleRequired, Authenticated } from '../users';
 
 @Injectable()
 export class OpeningHoursAPI {
@@ -12,6 +13,7 @@ export class OpeningHoursAPI {
     }
     
     @Get('/config')
+    @Authenticated()
     async getOpeningHoursConfig(req: Request, res: Response, next: Next) {
         try {
             let config = await this._hoursController.getConfig();
@@ -25,6 +27,7 @@ export class OpeningHoursAPI {
     } 
     
     @Put('/config/:weekday')
+    @RoleRequired('admin')
     async addTimeToWeekday(req: Request, res: Response, next: Next) {
         try {
             const frame: ITimeFrame = req.body;
@@ -53,6 +56,7 @@ export class OpeningHoursAPI {
     }
     
     @Delete('/config/:weekday')
+    @RoleRequired('admin')
     async deleteTimeFromWeekday(req: Request, res: Response, next: Next) {
         try {
             const frame: ITimeFrame = req.body;

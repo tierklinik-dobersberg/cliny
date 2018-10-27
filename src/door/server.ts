@@ -3,6 +3,7 @@ import {Use, Get, Post, Delete, Put, HTTPServerPlugin, Middleware} from '@jsmon/
 import {Request, Response, Next} from 'restify';
 import {Scheduler} from './scheduler';
 import {BoardController} from './board';
+import { Authenticated } from '../users';
 
 export class NotOpenMiddleware implements Middleware<never> {
     constructor(@Inject(forwardRef(() => API)) private _api: any,
@@ -40,6 +41,7 @@ export class API {
                 private _board: BoardController) {}
     
     @Get('/status')
+    @Authenticated()
     status(req: Request, res: Response, next: Next) {
         try {
             let current = this._scheduler.getConfigForDate(new Date());
@@ -80,6 +82,7 @@ export class API {
     }
     
     @Post('/open')
+    @Authenticated()
     async open(req: Request, res: Response, next: Next) {
         try {
             this._open = true;
@@ -105,6 +108,7 @@ export class API {
     }
     
     @Put('/set/:state')
+    @Authenticated()
     @GuardOpen()
     setOverwrite(req: Request, res: Response, next: Next) {
         try {
@@ -132,6 +136,7 @@ export class API {
     }
     
     @Post('/reset')
+    @Authenticated()
     @GuardOpen()
     async reset(req: Request, res: Response, next: Next) {
         try {

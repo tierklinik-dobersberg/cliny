@@ -3,10 +3,12 @@ import { Repository } from 'typeorm';
 import { Database } from '../database';
 import { IUser, User } from './models';
 import { compareSync } from 'bcrypt-nodejs';
+import { AuthToken } from './models/token';
 
 @Injectable()
 export class UserController {
-    private _repo: Repository<User>;
+    private _userRepo: Repository<User>;
+    private _tokenRepo: Repository<AuthToken>;
     private _ready: Promise<void>;
     private _resolve: () => void;
     
@@ -23,17 +25,35 @@ export class UserController {
                     .then(() => this._setup());
     }
     
+    /**
+     * @internal
+     * Prepares the user database
+     */
     private async _setup() {
-        this._repo = this._database.getRepository(User);
+        this._log.debug(`initializing user database`);
         
-        await this._ensureAdminUser();
-        
-        this._log.info(`User database initialized`);
-        this._resolve();
+        try {
+            this._userRepo = this._database.getRepository(User);
+            this._tokenRepo = this._database.getRepository(AuthToken);
+            
+            await this._ensureAdminUser();
+            
+            this._log.info(`User database initialized`);
+            this._resolve();
+        } catch (err) {
+            this._log.error(`Failed to setup user database: ${err}`);
+        }
     }
     
+    /**
+     * @internal
+     * Creates a new admin user with a random password if
+     * there's not at least one administrator available
+     */
     private async _ensureAdminUser() {
-        const count = await this._repo.count({role: 'admin'});
+        this._log.debug(`Checking for administration user ...`);
+
+        const count = await this._userRepo.count({role: 'admin'});
         
         if (count === 0) {
             const password = Math.random().toString(36).substring(2, 15);            
@@ -68,7 +88,7 @@ export class UserController {
          .setColor(user.color)
          .setEnabled(user.enabled);
         
-        await this._repo.save(u);
+        await this._userRepo.save(u);
     }
     
     /**
@@ -81,7 +101,7 @@ export class UserController {
             user = user.username;
         }
         
-        await this._repo.delete(user);
+        await this._userRepo.delete(user);
     }
     
     /**
@@ -91,7 +111,7 @@ export class UserController {
      * @param password - The plaintext password to validate
      */
     async checkUserPassword(username: string, password: string): Promise<boolean> {
-        const user = await this._repo.findOne(username);
+        const user = await this._userRepo.findOne(username);
         if (!user) {
             throw new Error('Unknown user');
         }
@@ -106,14 +126,52 @@ export class UserController {
      * @param newPassword  - The new password for the user
      */
     async updateUserPassword(username: string, newPassword: string) {
-        const user = await this._repo.findOne(username);
+        const user = await this._userRepo.findOne(username);
         if (!user) {
             throw new Error(`Unknown user`);
         }
         
         user.setPassword(newPassword);
 
-        await this._repo.update(username, user);
+        await this._userRepo.update(username, user);
+    }
+
+    /**
+     * Generates a new authentication token for a user
+     * 
+     * @param username - The name of the user
+     */
+    async generateAuthToken(username: string): Promise<string> {
+        const token = Math.random().toString(36).substring(2, 15) +
+                      Math.random().toString(36).substring(2, 15) +
+                      Math.random().toString(36).substring(2, 15);
+                      
+        let authToken = new AuthToken()
+            .setUser({username: username})
+            .setValue(token);
+            
+        await this._tokenRepo.save(authToken);
+
+        return token;
+    }
+    
+    /**
+     * Returns the user object for a given authentication token
+     * 
+     * @param token - The authentication token value
+     */
+    async getUserForToken(token: string): Promise<IUser|null> {
+        const authToken = await this._tokenRepo.findOne({tokenValue: token}, {relations: ['user']});
+
+        if (!authToken) {
+            return null;
+        }
+        
+        delete authToken.user.password;
+
+        return {
+            ...(authToken.user as IUser),
+        };
     }
 
     /**
@@ -127,7 +185,7 @@ export class UserController {
     async updateUser(user: IUser) {
         // Make sure we do not update the user password
         delete (user as any)['password'];
-        await this._repo.update(user.username, user);
+        await this._userRepo.update(user.username, user);
     }
 
     /**
@@ -137,7 +195,7 @@ export class UserController {
      * @param name - The name of the user to return
      */
     async getUser(name: string): Promise<IUser|null> {
-        let user = await this._repo.findOne(name)
+        let user = await this._userRepo.findOne(name)
         
         if (!user) {
             return null;
@@ -160,7 +218,7 @@ export class UserController {
      * Does not return secret information like passwords
      */
     async listUsers(): Promise<IUser[]> {
-        let users = await this._repo.find();
+        let users = await this._userRepo.find();
         return users.map(user => ({
             username: user.username,
             hoursPerWeek: user.hoursPerWeek,

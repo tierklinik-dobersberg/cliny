@@ -19,7 +19,6 @@ export class TimeFrame {
     public end: number;
     
     @ManyToOne(type => OpeningHour, hour => hour.times)
-    @JoinColumn()
     openingHour: OpeningHour;
 
     setStart(n: number): this {

@@ -1,6 +1,7 @@
 import { hashSync } from 'bcrypt-nodejs';
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn, ManyToMany } from 'typeorm';
+import { Column, Entity, JoinColumn, JoinTable, PrimaryColumn, ManyToMany, OneToMany } from 'typeorm';
 import { RostaSchedule } from '../../rosta/models/schedule';
+import { AuthToken } from './token';
 
 export type UserType = 'assistent' | 'doctor' | 'other';
 export type Role = 'admin' | 'user';
@@ -43,8 +44,10 @@ export class User implements IUser {
     icon: string|null;
     
     @ManyToMany(() => RostaSchedule, schedule => schedule.users)
-    @JoinColumn()
     rostaSchedules: RostaSchedule[];
+    
+    @OneToMany(() => AuthToken, token => token.user, {cascade: true})
+    tokens: AuthToken[];
     
     setColor(color: string): this {
         this.color = color;
