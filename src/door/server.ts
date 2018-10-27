@@ -41,18 +41,42 @@ export class API {
     
     @Get('/status')
     status(req: Request, res: Response, next: Next) {
-        let current = this._scheduler.getConfigForDate(new Date());
-        
-        if (this._open) {
-            current.state = 'open';
-            current.until = new Date().getTime();
-        }
+        try {
+            let current = this._scheduler.getConfigForDate(new Date());
+            
+            if (this._open) {
+                current.state = 'open';
+                current.until = new Date().getTime();
+            }
 
-        res.send(200, {
-            current: current,
-            config: this._scheduler.config,
-        });
+            res.send(200, {
+                current: current,
+                config: this._scheduler.config,
+            });
+            next();
+        } catch (err) {
+            next(err);
+        }
+    }
+    
+    @Post('/test')
+    test(req: Request, res: Response, next: Next) {
+        try {
+            let current = this._scheduler.getConfigForDate(new Date(req.body));
+            
+            if (this._open) {
+                current.state = 'open';
+                current.until = new Date().getTime();
+            }
+
+            res.send(200, {
+                current: current,
+                config: this._scheduler.config,
+            });
         next();
+        } catch (err) {
+            next(err);
+        }
     }
     
     @Post('/open')
