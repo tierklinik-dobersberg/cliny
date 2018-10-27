@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@jsmon/core';
 import { Repository } from 'typeorm';
 import { Database } from '../database';
 import { IUser, User } from './models';
+import { compareSync } from 'bcrypt-nodejs';
 
 @Injectable()
 export class UserController {
@@ -29,6 +30,12 @@ export class UserController {
         this._resolve();
     }
     
+    /**
+     * Creates a new user in the database
+     * 
+     * @param user - The new user object
+     * @param password - The password for the new user
+     */
     async createUser(user: IUser, password: string) {
         const u = new User();
         u.setHoursPerWeek(user.hoursPerWeek)
@@ -43,6 +50,11 @@ export class UserController {
         await this._repo.save(u);
     }
     
+    /**
+     * Deletes a user from the database
+     * 
+     * @param user - The name of the user or the user object
+     */
     async deleteUser(user: string|IUser) {
         if (typeof user === 'object') {
             user = user.username;
@@ -50,11 +62,59 @@ export class UserController {
         
         await this._repo.delete(user);
     }
+    
+    /**
+     * Checks if a given password is valid for a user
+     * 
+     * @param username - The name of the user
+     * @param password - The plaintext password to validate
+     */
+    async checkUserPassword(username: string, password: string): Promise<boolean> {
+        const user = await this._repo.findOne(username);
+        if (!user) {
+            throw new Error('Unknown user');
+        }
+        
+        return compareSync(password, user.password)
+    }
+    
+    /**
+     * Updates the password of a user
+     * 
+     * @param username - The username of the user
+     * @param newPassword  - The new password for the user
+     */
+    async updateUserPassword(username: string, newPassword: string) {
+        const user = await this._repo.findOne(username);
+        if (!user) {
+            throw new Error(`Unknown user`);
+        }
+        
+        user.setPassword(newPassword);
 
+        await this._repo.update(username, user);
+    }
+
+    /**
+     * Updates a user in the database and fails if
+     * the user does not exist.
+     * 
+     * This function will NOT update passwords
+     * 
+     * @param user - The user to update
+     */
     async updateUser(user: IUser) {
+        // Make sure we do not update the user password
+        delete (user as any)['password'];
         await this._repo.update(user.username, user);
     }
 
+    /**
+     * Returns a user object identified by name.
+     * Does not return secret information like passwords
+     * 
+     * @param name - The name of the user to return
+     */
     async getUser(name: string): Promise<IUser|null> {
         let user = await this._repo.findOne(name)
         
@@ -74,6 +134,10 @@ export class UserController {
         };
     }
     
+    /**
+     * Returns a list of all users stored in the database.
+     * Does not return secret information like passwords
+     */
     async listUsers(): Promise<IUser[]> {
         let users = await this._repo.find();
         return users.map(user => ({
