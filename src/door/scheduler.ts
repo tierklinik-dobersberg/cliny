@@ -364,29 +364,28 @@ export class Scheduler implements OnDestroy {
     private _getNextFrame(refDate: Date): [number, ITimeFrame]|null {
         let current = moment(refDate).isoWeekday();
         let offset = 0;
+        
         while(offset <= 7) {
             const config = this._currentConfig[current];
             
-            if (!config) {
+            if (!Array.isArray(config)) {
                 this._log.warn(`No configuration for ${current}`);
-                break;
-            }
-            
-            const next = config.find(frame => {
-                let ref = new Date(refDate.getTime());
-                const from = Scheduler._dateFromPreset({
-                    minutes: frame.start,
-                    offsetDays: offset, 
-                    refDate: ref
+            } else {
+                const next = config.find(frame => {
+                    let ref = new Date(refDate.getTime());
+                    const from = Scheduler._dateFromPreset({
+                        minutes: frame.start,
+                        offsetDays: offset, 
+                        refDate: ref
+                    });
+                    return from.getTime() > refDate.getTime();
                 });
                 
-                return from > refDate;
-            });
-            
-            if (!!next) {
-                return [offset, next];
+                if (!!next) {
+                    return [offset, next];
+                }
             }
-
+            
             current = current + 1;
             if (current > 7) {
                 current = 1;

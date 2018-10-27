@@ -1,10 +1,9 @@
 import { Injectable, Logger } from '@jsmon/core';
 import { Delete, Get, Post, Put } from '@jsmon/net/http/server';
 import { Next, Request, Response } from 'restify';
+import { Authenticated, CLINY_COOKIE, getAuthenticatedUser, RoleRequired } from './auth';
 import { IUser } from './models';
 import { UserController } from './user.controller';
-import { CLINY_COOKIE, Authenticated, RoleRequired, CLINY_AUTH_CONTEXT, getAuthenticatedUser } from './auth';
-import { getContext } from '../utils';
 
 @Injectable()
 export class UserAPI {
