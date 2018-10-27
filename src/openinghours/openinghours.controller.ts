@@ -87,6 +87,7 @@ export class OpeningHoursController implements OnDestroy {
     }
 
     /**
+     * Deletes a opening hour frame from a given weekday
      * 
      * @param weekday - The number of the weekday (0 = sunday, 6 = saturday)
      * @param t - The time frame or ID of the timeframe to delete
