@@ -39,6 +39,7 @@ export class UserAPI {
                 
                 // check if the user is allowed to login
                 if (!user!.enabled) {
+                    res.setCookie(CLINY_COOKIE, '', {expires: new Date(1), httpOnly: true, path: '/'});
                     next(new NotAuthorizedError());
                     return;
                 }
@@ -51,7 +52,7 @@ export class UserAPI {
                 this._log.info(`Failed to authenticate user ${username}`);
 
                 // Make sure we clean any authentication cookie available
-                res.setCookie(CLINY_COOKIE, '', {expires: new Date(1)});
+                res.setCookie(CLINY_COOKIE, '', {expires: new Date(1), httpOnly: true, path: '/'});
                 
                 next(new NotAuthorizedError('Invalid username or password'));
                 return;
