@@ -4,6 +4,7 @@ import { Next, Request, Response } from 'restify';
 import { Role, IUser } from './models';
 import { UserController } from './user.controller';
 import { getContext } from '../utils';
+import { NotAuthorizedError, ForbiddenError, UnauthorizedError } from 'restify-errors';
 
 export const CLINY_COOKIE = 'cliny';
 export const CLINY_AUTH_CONTEXT = 'cliny-user';
@@ -55,16 +56,14 @@ export class AuthenticationMiddleware implements Middleware<AuthOptions> {
             }
             
             let user = await this._userController.getUserForToken(authTokenValue || '');
-            if (!user) {
-                res.send(401, 'Authorization required');
-                next(false);
+            if (!user || !user.enabled) {
+                next(new UnauthorizedError('Authorization required'));
                 return;
             }
             
             if (!!options && !!options.roles) {
                 if (!options.roles.includes(user.role)) {
-                    res.send(403, 'Not allowed');
-                    next(false);
+                    next(new ForbiddenError());
                     return;
                 }
             } 
