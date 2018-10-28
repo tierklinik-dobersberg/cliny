@@ -35,8 +35,15 @@ export class UserAPI {
             if (await this._userCtrl.checkUserPassword(username, password)) {
                 this._log.info(`User ${username} authenticated successfully`);
                 
-                const token = await this._userCtrl.generateTokenForUser(username);
                 const user = await this._userCtrl.getUser(username);
+                
+                // check if the user is allowed to login
+                if (!user!.enabled) {
+                    next(new NotAuthorizedError());
+                    return;
+                }
+                
+                const token = await this._userCtrl.generateTokenForUser(username);
 
                 res.setCookie(CLINY_COOKIE, token, {httpOnly: true, path: '/'});
                 res.send(200, user);
