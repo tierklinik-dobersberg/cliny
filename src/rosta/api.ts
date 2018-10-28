@@ -3,12 +3,29 @@ import { RostaController } from './rosta.controller';
 import { Get, Post, Delete, Put } from '@jsmon/net/http/server';
 import { Request, Response, Next } from 'restify';
 import { Authenticated, RoleRequired } from '../users';
+import moment from 'moment';
 
 @Injectable()
 export class RostaAPI {
     constructor(private _controller: RostaController,
                 private _log: Logger) {
         this._log = this._log.createChild('api:rosta');
+    }
+    
+    @Get('/current')
+    @Authenticated()
+    async getCurrentSchedules(req: Request, res: Response, next: Next) {
+        try {
+            const startOfWeek = moment().startOf('isoWeek');
+            const endOfWeek = moment().endOf('isoWeek');
+
+            let result = await this._controller.getSchedulesBetween(startOfWeek, endOfWeek);
+
+            res.send(200, result);
+            next();
+        } catch (err) {
+            next(err);
+        }
     }
 
     @Get('/schedules')
