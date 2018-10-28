@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@jsmon/core';
 import { Delete, Get, Post, Put } from '@jsmon/net/http/server';
 import { Next, Request, Response } from 'restify';
-import { BadRequestError, ForbiddenError, NotAuthorizedError } from 'restify-errors';
+import { BadRequestError, ForbiddenError, NotAuthorizedError, InternalServerError } from 'restify-errors';
 import { Authenticated, CLINY_COOKIE, getAuthenticatedUser, RoleRequired } from './auth';
 import { IUser } from './models';
 import { UserController } from './user.controller';
@@ -50,6 +50,24 @@ export class UserAPI {
                 return;
             }
             next();
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    @Get('/login')
+    @Authenticated()
+    async getCurrentUser(req: Request, res: Response, next: Next) {
+        try {
+            const authenticatedUser = getAuthenticatedUser(req);
+            if (!authenticatedUser) {
+                // This shouldn't happen because if the request is not authenticated
+                // the middleware would already fail the request
+                next( new InternalServerError() );
+                return;
+            }
+            
+            res.send(200, authenticatedUser);
         } catch (err) {
             next(err);
         }
