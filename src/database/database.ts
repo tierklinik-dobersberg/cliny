@@ -5,6 +5,7 @@ export const DB_ENTITY = 'DB_ENTITY';
 export const DB_CONFIG = 'DB_CONFIG';
 export interface DatabaseConfig {
     sync?: boolean;
+    logQueries?: boolean;
 }
 
 export function provideEntity(e: Type<any>): Provider {
@@ -63,7 +64,7 @@ export class Database implements OnDestroy {
                 type: 'sqlite',
                 database: './cliny.db',
                 synchronize: this._config.sync || false,
-                //logging: true,
+                logging: this._config.logQueries || false,
                 entities: [
                     ...this._entities
                 ]

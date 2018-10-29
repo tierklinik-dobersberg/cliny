@@ -72,7 +72,7 @@ export class ClinyBootstrap implements Runnable {
         argType: 'string',
         description: 'The log level (debug, info, warn, error)'
     })
-    private readonly logLevel: LogLevel|undefined;
+    private logLevel: LogLevel|undefined;
 
     @Option({
         name: 'port',
@@ -121,7 +121,12 @@ export class ClinyBootstrap implements Runnable {
     }
     
     async run() {
+        let logDBQueries = false;
         if (!!this.logLevel) {
+            if ((this.logLevel as string) === 'trace') {
+                this.logLevel = 'debug';
+                logDBQueries = true;
+            }
             this._log.setLogLevel(this.logLevel);
             this._log.debug(`setting log-level to ${this.logLevel}`);
         }
@@ -151,6 +156,7 @@ export class ClinyBootstrap implements Runnable {
             ...DoorPlugin.forConfig(doorConfig),
             DatabasePlugin.useConfig({
                 sync: this.syncDb,
+                logQueries: logDBQueries,
             })
         ]);
         
