@@ -12,6 +12,63 @@ export class RostaAPI {
         this._log = this._log.createChild('api:rosta');
     }
     
+    @Get('/types')
+    @Authenticated()
+    async getTypes(req: Request, res: Response, next: Next) {
+        try {
+            let types = await this._controller.getTypes();
+
+            res.send(200, types)
+            next();
+        } catch (err) {
+            next(err);
+        }
+    }
+    
+    @Put('/types/:id')
+    @RoleRequired('admin')
+    async editType(req: Request, res: Response, next: Next) {
+        try {
+            const name = req.body.name;
+            const color = req.body.color || '';
+
+            let result = await this._controller.editType(+req.params.id, name, color);
+            
+            res.send(200, result);
+            next();
+        } catch (err) {
+            next(err);
+        }
+    }
+    
+    @Post('/types')
+    @RoleRequired('admin')
+    async createType(req: Request, res: Response, next: Next) {
+        try {
+            const name = req.body.name;
+            const color = req.body.color || '';
+
+            let result = await this._controller.createType(name, color);
+            
+            res.send(200, result);
+            next();
+        } catch (err) {
+            next(err);
+        }
+    }
+    
+    @Delete('/types/:id')
+    @RoleRequired('admin')
+    async deleteType(req: Request, res: Response, next: Next) {
+        try {
+            await this._controller.deleteType(+req.params.id);
+            res.send(204);
+            next();
+        } catch (err) {
+            next(err);
+        }
+    }
+    
     @Get('/current')
     @Authenticated()
     async getCurrentSchedules(req: Request, res: Response, next: Next) {
@@ -62,8 +119,9 @@ export class RostaAPI {
             const date = new Date(req.body.date);
             const users = req.body.users;
             const color = req.body.color;
+            const type = req.body.type;
 
-            await this._controller.createSchedule(start, end, date, users, color);
+            await this._controller.createSchedule(start, end, date, users, type, color);
             
             res.send(204);
             next();
@@ -82,8 +140,9 @@ export class RostaAPI {
             const date = new Date(req.body.date);
             const users = req.body.users;
             const color = req.body.color;
+            const type = req.body.type;
 
-            await this._controller.editSchedule(+req.params.id, start, end, date, users, color);
+            await this._controller.editSchedule(+req.params.id, start, end, date, users, type, color);
             
             res.send(204);
             next();

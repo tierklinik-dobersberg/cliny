@@ -1,6 +1,7 @@
-import {Column, PrimaryGeneratedColumn, ManyToOne, ManyToMany, Entity, JoinTable} from 'typeorm';
+import {Column, PrimaryGeneratedColumn, ManyToOne, ManyToMany, Entity, JoinTable, OneToMany, OneToOne, JoinColumn} from 'typeorm';
 import { Rosta, IRosta } from './rosta';
 import { User, IUser } from '../../users';
+import { RostaScheduleType } from './rosta-types';
 
 export interface IRostaSchedule {
     id: number;
@@ -36,6 +37,10 @@ export class RostaSchedule implements IRostaSchedule {
     @JoinTable()
     users: User[];
     
+    @OneToOne(() => RostaScheduleType)
+    @JoinColumn()
+    type: RostaScheduleType
+    
     setID(id?: number): this {
         if (id !== undefined) {
             this.id = id;
@@ -45,6 +50,16 @@ export class RostaSchedule implements IRostaSchedule {
 
     setRosta(rosta: Rosta): this {
         this.rosta = rosta;
+        return this;
+    }
+    
+    setType(type: number|RostaScheduleType) {
+        if (typeof type === 'object') {
+            this.type = type;
+        } else {
+            this.type = {id: type} as any;
+        }
+        
         return this;
     }
     
