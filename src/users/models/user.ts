@@ -15,6 +15,10 @@ export interface IUser {
     icon: string|null;
     color: string;
     rostaSchedules?: RostaSchedule[];
+    firstname?: string | null;
+    lastname?: string | null;
+    phoneNumber?: string | null;
+    mailAddress?: string | null;
 }
 
 @Entity()
@@ -27,6 +31,18 @@ export class User implements IUser {
 
     @Column('varchar')
     type: UserType;
+
+    @Column('varchar', {nullable: true})
+    firstname: string | null;
+
+    @Column('varchar', {nullable: true})
+    lastname: string | null;
+
+    @Column('varchar', {nullable: true})
+    mailAddress: string | null;
+
+    @Column('varchar', {nullable: true})
+    phoneNumber: string | null;
     
     @Column()
     password: string;
@@ -91,6 +107,26 @@ export class User implements IUser {
 
     setRostaSchedules(schedules: RostaSchedule[]): this {
         this.rostaSchedules = schedules;
+        return this;
+    }
+    
+    setFirstName(name?: string | null): this {
+        this.firstname = name || null;
+        return this;
+    }
+    
+    setLastName(name?: string | null): this {
+        this.lastname = name || null;
+        return this;
+    }
+    
+    setPhoneNumber(number?: string | null): this {
+        this.phoneNumber = number || null;
+        return this;
+    }
+    
+    setMailAddress(mail?: string | null): this {
+        this.mailAddress = mail || null;
         return this;
     }
 }

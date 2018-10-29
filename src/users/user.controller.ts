@@ -87,6 +87,10 @@ export class UserController {
          .setType(user.type)
          .setPassword(password)
          .setColor(user.color)
+         .setFirstName(user.firstname)
+         .setLastName(user.lastname)
+         .setPhoneNumber(user.phoneNumber)
+         .setMailAddress(user.mailAddress)
          .setEnabled(user.enabled);
         
         await this._userRepo.save(u);
@@ -204,16 +208,7 @@ export class UserController {
             throw new NotFoundError(`User ${name} not found`);
         }
         
-        return {
-            username: user.username,
-            hoursPerWeek: user.hoursPerWeek,
-            icon: user.icon,
-            role: user.role,
-            type: user.type,
-            color: user.color,
-            enabled: user.enabled,
-            rostaSchedules: user.rostaSchedules || [],
-        };
+        return this._convertUser(user);
     }
     
     /**
@@ -222,7 +217,11 @@ export class UserController {
      */
     async listUsers(): Promise<IUser[]> {
         let users = await this._userRepo.find();
-        return users.map(user => ({
+        return users.map(this._convertUser);
+    }
+    
+    private _convertUser(user: User): IUser {
+        return {
             username: user.username,
             hoursPerWeek: user.hoursPerWeek,
             icon: user.icon,
@@ -230,8 +229,12 @@ export class UserController {
             type: user.type,
             color: user.color,
             enabled: user.enabled,
+            firstname: user.firstname,
+            lastname: user.lastname,
+            phoneNumber: user.phoneNumber,
+            mailAddress: user.mailAddress, 
             rostaSchedules: user.rostaSchedules || [],
-        }));
+        };
     }
 }
 

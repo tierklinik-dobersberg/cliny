@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@jsmon/core';
 import { Delete, Get, Post, Put } from '@jsmon/net/http/server';
 import { Next, Request, Response } from 'restify';
-import { BadRequestError, ForbiddenError, NotAuthorizedError, InternalServerError } from 'restify-errors';
+import { BadRequestError, ForbiddenError, NotAuthorizedError, InternalServerError, PreconditionFailedError } from 'restify-errors';
 import { Authenticated, CLINY_COOKIE, getAuthenticatedUser, RoleRequired } from './auth';
 import { IUser } from './models';
 import { UserController } from './user.controller';
@@ -115,6 +115,37 @@ export class UserAPI {
         }
     }
     
+    @Put('/:username/password')
+    @Authenticated()
+    async changePassword(req: Request, res: Response, next: Next) {
+        try {
+            // If the authenticated user is not an admin it is only
+            // allowed to update it self;
+            const authenticated = getAuthenticatedUser(req)!;
+
+            if (authenticated.role !== 'admin' && authenticated.username !== req.params.username) {
+                next( new ForbiddenError() );
+                return;
+            }
+
+            let currentPassword = req.body.current;
+            let newPassword = req.body.newPassword;
+
+            if (authenticated.role !== 'admin' || authenticated.username === req.params.username) {
+                if (! (await this._userCtrl.checkUserPassword(req.params.username, currentPassword))) {
+                    next(new PreconditionFailedError('Current password is wrong'));
+                    return
+                }
+            }
+            
+            await this._userCtrl.updateUserPassword(req.params.username, newPassword);
+            res.send(204);
+            next();
+        } catch(err) {
+            next(err);
+        }
+    }
+    
     @Put('/:username')
     @Authenticated()
     async updateUser(req: Request, res: Response, next: Next) {
@@ -132,7 +163,14 @@ export class UserAPI {
         user.username = req.params.username;
 
         try {
-            delete (user as any)['password']; // make sure to not change the password
+            // Delete all properties that only an administrator may change
+            if (authenticated.role !== 'admin') {
+                delete user.hoursPerWeek;
+                delete user.type;
+                delete user.role;
+            }
+            
+            delete (user as any)['password']; 
             await this._userCtrl.updateUser(user);
             
             res.send(204);
