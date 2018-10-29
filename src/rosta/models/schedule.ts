@@ -37,8 +37,7 @@ export class RostaSchedule implements IRostaSchedule {
     @JoinTable()
     users: User[];
     
-    @OneToOne(() => RostaScheduleType)
-    @JoinColumn()
+    @ManyToOne(() => RostaScheduleType)
     type: RostaScheduleType
     
     setID(id?: number): this {

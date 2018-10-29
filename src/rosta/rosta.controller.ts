@@ -148,7 +148,7 @@ export class RostaController {
         
         if (countTypes === 0) {
             this._log.info(`Creating default rosta schedule type: Default`);
-            await this.createType('Default');
+            await this.createType('Default', '#f0f0f0');
         }
 
         this._resolve();
