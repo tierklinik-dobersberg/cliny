@@ -22,6 +22,13 @@ export class MailService {
         this._transport = createTransport(this._cfg);
     }
 
+    /**
+     * Sends a text message using the configured mail transport
+     * 
+     * @param to - One or more receipients in the format of either "name@domain.tld" or "Name <name@domain.tld>"
+     * @param subject - The subject for the mail message
+     * @param message  - The mail text message itself
+     */
     sendMail(to: string|string[], subject: string, message: string): Promise<void> {
         if (!this._enabled) {
             this._log.warn(`E-Mail service disabled`);

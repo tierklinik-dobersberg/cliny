@@ -130,6 +130,7 @@ export class ClinyBootstrap implements Runnable {
     }
     
     async run() {
+        // Setup logging
         let logDBQueries = false;
         if (!!this.logLevel) {
             if ((this.logLevel as string) === 'trace') {
@@ -140,12 +141,13 @@ export class ClinyBootstrap implements Runnable {
             this._log.debug(`setting log-level to ${this.logLevel}`);
         }
         
+        // Setup door/scheduler config
         const doorConfig: DoorPluginConfig = {};
-
         if (!!this.schedulerConfigPath) {
             doorConfig.schedulerConfig = this.schedulerConfigPath;
         }
         
+        // Setup board config
         if (!!this.useDummyBoard) {
             doorConfig.useDummyBoard = this.useDummyBoard;
         }
@@ -161,6 +163,7 @@ export class ClinyBootstrap implements Runnable {
             }
         }
         
+        // Setup mail config
         let mailConfig: MailConfig | null = null;
         if (this.testMailAccount) {
             let result = await createTestAccount();
@@ -186,6 +189,7 @@ export class ClinyBootstrap implements Runnable {
             ...(mailConfig !== null ? [MailServicePlugin.withConfig(mailConfig)] : [])
         ]);
         
+        // bootstrap and run cliny
         const app = new Bootstrap()
             .withInjector(appInjector)
             .withProvider(Cliny)
@@ -194,7 +198,6 @@ export class ClinyBootstrap implements Runnable {
             
         await app.waitForTermination();
         this._log.info('Shutdown');
-
     }
 }
 
