@@ -178,6 +178,12 @@ export class ClinyBootstrap implements Runnable {
                 },
                 sender: 'test@tierklinik-dobersberg.at'
             }
+            
+            this._log.info("===================================");
+            this._log.info("        Test Mail Account");
+            this._log.info(`Username: ${result.user}"`);
+            this._log.info(`Password: ${result.pass}"`);
+            this._log.info("===================================");
         }
         
         const appInjector = this._injector.createChild([
