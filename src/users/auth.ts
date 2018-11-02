@@ -4,7 +4,7 @@ import { Next, Request, Response } from 'restify';
 import { Role, IUser } from './models';
 import { UserController } from './user.controller';
 import { getContext } from '../utils';
-import { NotAuthorizedError, ForbiddenError, UnauthorizedError } from 'restify-errors';
+import { NotAuthorizedError, ForbiddenError, UnauthorizedError, LockedError } from 'restify-errors';
 
 export const CLINY_COOKIE = 'cliny';
 export const CLINY_AUTH_CONTEXT = 'cliny-user';
@@ -56,8 +56,13 @@ export class AuthenticationMiddleware implements Middleware<AuthOptions> {
             }
             
             let user = await this._userController.getUserForToken(authTokenValue || '');
-            if (!user || !user.enabled) {
+            if (!user) {
                 next(new UnauthorizedError('Authorization required'));
+                return;
+            }
+            
+            if (!user.enabled) {
+                next(new LockedError('User locked'));
                 return;
             }
             
