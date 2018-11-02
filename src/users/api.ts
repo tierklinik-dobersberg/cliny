@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@jsmon/core';
 import { Delete, Get, Post, Put } from '@jsmon/net/http/server';
 import { Next, Request, Response } from 'restify';
-import { BadRequestError, ForbiddenError, NotAuthorizedError, InternalServerError, PreconditionFailedError } from 'restify-errors';
+import { BadRequestError, ForbiddenError, NotAuthorizedError, InternalServerError, PreconditionFailedError, LockedError } from 'restify-errors';
 import { Authenticated, CLINY_COOKIE, getAuthenticatedUser, RoleRequired } from './auth';
 import { IUser } from './models';
 import { UserController } from './user.controller';
@@ -33,19 +33,24 @@ export class UserAPI {
             const password = req.body.password;
 
             if (await this._userCtrl.checkUserPassword(username, password)) {
-                this._log.info(`User ${username} authenticated successfully`);
                 
                 const user = await this._userCtrl.getUser(username);
+                
+                if (user!.mustChangePassword) {
+                    this._log.info(`User ${username} authenticated and password change required`);
+                } else {
+                    this._log.info(`User ${username} authenticated successfully`);
+                }
                 
                 // check if the user is allowed to login
                 if (!user!.enabled) {
                     res.setCookie(CLINY_COOKIE, '', {expires: new Date(1), httpOnly: true, path: '/'});
-                    next(new NotAuthorizedError());
+                    next(new LockedError());
                     return;
                 }
                 
                 const token = await this._userCtrl.generateTokenForUser(username);
-
+                
                 res.setCookie(CLINY_COOKIE, token, {httpOnly: true, path: '/'});
                 res.send(200, user);
             } else {
@@ -75,6 +80,12 @@ export class UserAPI {
                 return;
             }
             
+            if (authenticatedUser.mustChangePassword) {
+                this._log.info(`User ${authenticatedUser.username} already authenticated but must change password`);
+            } else {
+                this._log.info(`User ${authenticatedUser.username} already authenticated`)
+            }
+
             res.send(200, authenticatedUser);
         } catch (err) {
             next(err);

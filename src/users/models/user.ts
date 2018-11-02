@@ -19,6 +19,7 @@ export interface IUser {
     lastname?: string | null;
     phoneNumber?: string | null;
     mailAddress?: string | null;
+    mustChangePassword?: boolean;
 }
 
 @Entity()
@@ -64,6 +65,14 @@ export class User implements IUser {
     
     @OneToMany(() => AuthToken, token => token.user, {cascade: true})
     tokens: AuthToken[];
+    
+    @Column({nullable: true})
+    mustChangePassword: boolean;
+    
+    setMustChangePassword(v: boolean): this {
+        this.mustChangePassword = v;
+        return this;
+    }
     
     setColor(color: string): this {
         this.color = color;

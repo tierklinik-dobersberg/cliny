@@ -86,6 +86,7 @@ export class UserController {
          .setRole(user.role)
          .setType(user.type)
          .setPassword(password)
+         .setMustChangePassword(user.mustChangePassword || false)
          .setColor(user.color)
          .setFirstName(user.firstname)
          .setLastName(user.lastname)
@@ -138,7 +139,8 @@ export class UserController {
             throw new NotFoundError(`User ${username} not found`);
         }
         
-        user.setPassword(newPassword);
+        user.setPassword(newPassword)
+            .setMustChangePassword(false);
 
         await this._userRepo.update(username, user);
     }
@@ -232,7 +234,8 @@ export class UserController {
             firstname: user.firstname,
             lastname: user.lastname,
             phoneNumber: user.phoneNumber,
-            mailAddress: user.mailAddress, 
+            mailAddress: user.mailAddress,
+            mustChangePassword: user.mustChangePassword || false,
             rostaSchedules: user.rostaSchedules || [],
         };
     }
