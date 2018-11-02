@@ -29,14 +29,14 @@ export class MailService {
      * @param subject - The subject for the mail message
      * @param message  - The mail text message itself
      */
-    sendMail(to: string|string[], subject: string, message: string): Promise<void> {
+    sendMail(to: string|string[], subject: string, message: string, sender?: string): Promise<void> {
         if (!this._enabled) {
             this._log.warn(`E-Mail service disabled`);
             return Promise.reject('E-Mail service disabled');
         }
         
         const opts: MailOptions = {
-            from: this._cfg.sender,
+            from: sender || this._cfg.sender,
             to: Array.isArray(to) ? to.join(' ,') : to,
             subject: subject,
             text: message
