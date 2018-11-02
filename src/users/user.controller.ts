@@ -141,8 +141,11 @@ export class UserController {
         
         user.setPassword(newPassword)
             .setMustChangePassword(false);
+            
 
         await this._userRepo.update(username, user);
+        
+        this._log.info(`user ${username} changed password`);
     }
 
     /**
@@ -240,4 +243,3 @@ export class UserController {
         };
     }
 }
-

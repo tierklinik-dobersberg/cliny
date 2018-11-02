@@ -10,6 +10,8 @@ import { OpeningHoursPlugin } from './openinghours';
 import { RostaPlugin } from './rosta';
 import { UserPlugin } from './users';
 import 'restify-cookies';
+import { MailServicePlugin, MailConfig } from './services';
+import { createTestAccount } from 'nodemailer';
 
 // Unfortunately the typedefinitions for restify-cookies lacks the CookieParser
 // default export (e.g. there's no "parse" method)
@@ -23,6 +25,7 @@ const CookieParser = require('restify-cookies');
         HTTPServerPlugin,
         RostaPlugin,
         UserPlugin,
+        MailServicePlugin
     ],
 })
 export class Cliny {
@@ -115,6 +118,12 @@ export class ClinyBootstrap implements Runnable {
     })
     public readonly syncDb: boolean = false;
 
+    @Option({
+        name: 'test-mail',
+        description: 'Create and use a test-account for mails',
+        argType: 'boolean'
+    })
+    public readonly testMailAccount: boolean = false;
 
     constructor(private _injector: Injector,
                 private _log: Logger) {
@@ -152,12 +161,29 @@ export class ClinyBootstrap implements Runnable {
             }
         }
         
+        let mailConfig: MailConfig | null = null;
+        if (this.testMailAccount) {
+            let result = await createTestAccount();
+
+            mailConfig = {
+                host: 'smtp.ethereal.email',
+                port: 465,
+                secure: true,
+                auth: {
+                    user: result.user,
+                    pass: result.pass
+                },
+                sender: 'test@tierklinik-dobersberg.at'
+            }
+        }
+        
         const appInjector = this._injector.createChild([
             ...DoorPlugin.forConfig(doorConfig),
             DatabasePlugin.useConfig({
                 sync: this.syncDb,
                 logQueries: logDBQueries,
-            })
+            }),
+            ...(mailConfig !== null ? [MailServicePlugin.withConfig(mailConfig)] : [])
         ]);
         
         const app = new Bootstrap()
