@@ -1,6 +1,6 @@
 import { hashSync } from 'bcrypt-nodejs';
-import { Column, Entity, JoinColumn, JoinTable, PrimaryColumn, ManyToMany, OneToMany } from 'typeorm';
-import { RostaSchedule } from '../../rosta/models/schedule';
+import { Column, Entity, ManyToMany, OneToMany, PrimaryColumn } from 'typeorm';
+import { RosterSchedule } from '../../roster/models/schedule';
 import { AuthToken } from './token';
 
 export type UserType = 'assistent' | 'doctor' | 'other';
@@ -14,7 +14,7 @@ export interface IUser {
     enabled: boolean;
     icon: string|null;
     color: string;
-    rostaSchedules?: RostaSchedule[];
+    rosterSchedules?: RosterSchedule[];
     firstname?: string | null;
     lastname?: string | null;
     phoneNumber?: string | null;
@@ -60,8 +60,8 @@ export class User implements IUser {
     @Column({type: 'text', nullable: true, default: null})
     icon: string|null;
     
-    @ManyToMany(() => RostaSchedule, schedule => schedule.users)
-    rostaSchedules: RostaSchedule[];
+    @ManyToMany(() => RosterSchedule, schedule => schedule.users)
+    rosterSchedules: RosterSchedule[];
     
     @OneToMany(() => AuthToken, token => token.user, {cascade: true})
     tokens: AuthToken[];
@@ -114,8 +114,8 @@ export class User implements IUser {
         return this;
     }
 
-    setRostaSchedules(schedules: RostaSchedule[]): this {
-        this.rostaSchedules = schedules;
+    setRosterSchedules(schedules: RosterSchedule[]): this {
+        this.rosterSchedules = schedules;
         return this;
     }
     

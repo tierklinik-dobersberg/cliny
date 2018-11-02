@@ -65,7 +65,8 @@ export class UserController {
                 hoursPerWeek: 0,
                 icon: '',
                 role: 'admin',                
-                type: 'other'
+                type: 'other',
+                mustChangePassword: true,
             }, password);
             
             this._log.info(`Created administration user with name 'admin' and password ${password}`);
@@ -239,7 +240,7 @@ export class UserController {
             phoneNumber: user.phoneNumber,
             mailAddress: user.mailAddress,
             mustChangePassword: user.mustChangePassword || false,
-            rostaSchedules: user.rostaSchedules || [],
+            rosterSchedules: user.rosterSchedules || [],
         };
     }
 }

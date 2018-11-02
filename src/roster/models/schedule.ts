@@ -1,19 +1,19 @@
 import {Column, PrimaryGeneratedColumn, ManyToOne, ManyToMany, Entity, JoinTable, OneToMany, OneToOne, JoinColumn} from 'typeorm';
-import { Rosta, IRosta } from './rosta';
+import { Roster, IRoster } from './roster';
 import { User, IUser } from '../../users';
-import { RostaScheduleType } from './rosta-types';
+import { RosterScheduleType } from './roster-types';
 
-export interface IRostaSchedule {
+export interface IRosterSchedule {
     id: number;
     start: number;
     end: number;
     color: string | null;
-    rosta: IRosta;
+    roster: IRoster;
     users: IUser[];
 }
 
 @Entity()
-export class RostaSchedule implements IRostaSchedule {
+export class RosterSchedule implements IRosterSchedule {
     @PrimaryGeneratedColumn()
     id: number;
 
@@ -29,16 +29,15 @@ export class RostaSchedule implements IRostaSchedule {
     @Column('varchar', {nullable: true})
     color: string | null;
 
-    @ManyToOne(() => Rosta, rosta => rosta.schedules)
-    //@JoinColumn()
-    rosta: Rosta;
+    @ManyToOne(() => Roster, roster => roster.schedules)
+    roster: Roster;
     
-    @ManyToMany(() => User, user => user.rostaSchedules)
+    @ManyToMany(() => User, user => user.rosterSchedules)
     @JoinTable()
     users: User[];
     
-    @ManyToOne(() => RostaScheduleType)
-    type: RostaScheduleType
+    @ManyToOne(() => RosterScheduleType)
+    type: RosterScheduleType
     
     setID(id?: number): this {
         if (id !== undefined) {
@@ -47,12 +46,12 @@ export class RostaSchedule implements IRostaSchedule {
         return this;
     }
 
-    setRosta(rosta: Rosta): this {
-        this.rosta = rosta;
+    setRoster(roster: Roster): this {
+        this.roster = roster;
         return this;
     }
     
-    setType(type: number|RostaScheduleType) {
+    setType(type: number|RosterScheduleType) {
         if (typeof type === 'object') {
             this.type = type;
         } else {

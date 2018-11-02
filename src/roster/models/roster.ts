@@ -1,10 +1,10 @@
 import {Entity, PrimaryGeneratedColumn, Column, OneToMany, JoinTable} from 'typeorm';
-import { RostaSchedule } from './schedule';
+import { RosterSchedule } from './schedule';
 import moment from 'moment';
 
-export interface IRosta {
+export interface IRoster {
     id: number;
-    schedules: RostaSchedule[]
+    schedules: RosterSchedule[]
     
     calendarWeek: string;
     
@@ -14,13 +14,13 @@ export interface IRosta {
 }
 
 @Entity()
-export class Rosta implements IRosta {
+export class Roster implements IRoster {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @OneToMany(() => RostaSchedule, schedule => schedule.rosta)
+    @OneToMany(() => RosterSchedule, schedule => schedule.roster)
     @JoinTable()
-    schedules: RostaSchedule[];
+    schedules: RosterSchedule[];
     
     @Column()
     startDate: number;
@@ -32,7 +32,7 @@ export class Rosta implements IRosta {
     calendarWeek: string;
     
 
-    setSchedules(schedules: RostaSchedule[]): this {
+    setSchedules(schedules: RosterSchedule[]): this {
         this.schedules = schedules;
         return this;
     }

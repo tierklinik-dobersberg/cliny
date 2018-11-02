@@ -1,8 +1,8 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
-import { RostaSchedule } from './schedule';
+import { RosterSchedule } from './schedule';
 
 @Entity()
-export class RostaScheduleType {
+export class RosterScheduleType {
     @PrimaryGeneratedColumn()
     id: number;
 

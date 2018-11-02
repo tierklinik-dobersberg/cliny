@@ -7,7 +7,7 @@ import { plugins } from 'restify';
 import { DatabasePlugin } from './database';
 import { BoardConfig, DoorController, DoorPlugin, DoorPluginConfig } from './door';
 import { OpeningHoursPlugin } from './openinghours';
-import { RostaPlugin } from './rosta';
+import { RosterPlugin } from './roster';
 import { UserPlugin } from './users';
 import 'restify-cookies';
 import { MailServicePlugin, MailConfig } from './services';
@@ -23,7 +23,7 @@ const CookieParser = require('restify-cookies');
         DatabasePlugin,
         OpeningHoursPlugin,
         HTTPServerPlugin,
-        RostaPlugin,
+        RosterPlugin,
         UserPlugin,
         MailServicePlugin
     ],
@@ -44,7 +44,7 @@ export class Cliny {
         DoorPlugin.setupRoutes('/door', this._httpServer);
         OpeningHoursPlugin.setupRoutes('/openinghours', this._httpServer);
         UserPlugin.setupRoutes('/users', this._httpServer);
-        RostaPlugin.setupRoutes('/rosta', this._httpServer);
+        RosterPlugin.setupRoutes('/roster', this._httpServer);
 
         // Start serving
         this._logger.info(`Listening on ${this._main.port}`);
@@ -179,11 +179,11 @@ export class ClinyBootstrap implements Runnable {
                 sender: 'test@tierklinik-dobersberg.at'
             }
             
-            this._log.info("===================================");
-            this._log.info("        Test Mail Account");
-            this._log.info(`Username: ${result.user}"`);
-            this._log.info(`Password: ${result.pass}"`);
-            this._log.info("===================================");
+            this._log.info("=============================================");
+            this._log.info("          [- Test Mail Account -]");
+            this._log.info(`Username: ${result.user}`);
+            this._log.info(`Password: ${result.pass}`);
+            this._log.info("=============================================");
         }
         
         const appInjector = this._injector.createChild([

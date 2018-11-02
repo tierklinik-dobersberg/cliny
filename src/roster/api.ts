@@ -1,15 +1,15 @@
 import { Injectable, Logger } from '@jsmon/core';
-import { RostaController } from './rosta.controller';
+import { RosterController } from './roster.controller';
 import { Get, Post, Delete, Put } from '@jsmon/net/http/server';
 import { Request, Response, Next } from 'restify';
 import { Authenticated, RoleRequired } from '../users';
 import moment from 'moment';
 
 @Injectable()
-export class RostaAPI {
-    constructor(private _controller: RostaController,
+export class RosterAPI {
+    constructor(private _controller: RosterController,
                 private _log: Logger) {
-        this._log = this._log.createChild('api:rosta');
+        this._log = this._log.createChild('api:er');
     }
     
     @Get('/types')
