@@ -10,6 +10,7 @@ import { MailService } from '../services';
 const defaultInvitationTemplate = `
 <html>
 <body>
+<img src="logo.png"> <br />
 Hallo {{= it.fullname}},<br />
 <br />
 Ein neuer Account in der Tierklinik Dobersberg wurde für dich erstellt.<br />

@@ -1,7 +1,7 @@
 import { Injectable, Logger, Inject, Optional } from "@jsmon/core";
 import { MailConfig, MAIL_CONFIG } from "./config";
 import { createTransport } from "nodemailer";
-import Mail from "nodemailer/lib/mailer";
+import Mail, { Attachment } from "nodemailer/lib/mailer";
 import { MailOptions } from "nodemailer/lib/sendmail-transport";
 import { ConfigService } from "../config";
 import { MailTemplateService } from "./template.service";
@@ -53,7 +53,7 @@ export class MailService {
      * @param subject - The subject for the mail message
      * @param message  - The mail text message itself
      */
-    sendMail(to: string|string[], subject: string, message: string, sender?: string): Promise<void> {
+    sendMail(to: string|string[], subject: string, message: string, sender?: string, attachments?: Attachment[]): Promise<void> {
         if (!this._enabled) {
             this._log.warn(`E-Mail service disabled`);
             return Promise.reject('E-Mail service disabled');
@@ -64,13 +64,14 @@ export class MailService {
             to: Array.isArray(to) ? to.join(' ,') : to,
             subject: subject,
             html: message,
+            attachments: attachments,
         };
 
         return this._transport.sendMail(opts)
     }
     
-    async sendMailTemplate(to: string|string[], subject: string, template: string, context: any, sender?: string, defaultTemplate?: string): Promise<void> {
+    async sendMailTemplate(to: string|string[], subject: string, template: string, context: any, sender?: string, defaultTemplate?: string, attachments?: Attachment[]): Promise<void> {
         const message = await this._templateService.compileTemplate(template, context, defaultTemplate);
-        return await this.sendMail(to, subject, message, sender);
+        return await this.sendMail(to, subject, message.content, sender, [...(attachments || []), ...message.attachments]);
     }
 }

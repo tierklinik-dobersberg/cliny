@@ -2,8 +2,14 @@ import {Injectable, Inject, Optional} from '@jsmon/core';
 import { ConfigService } from '../config';
 import { MailConfig } from './config';
 import { existsSync, statSync, readFileSync, readFile } from 'fs';
-import { join, resolve } from 'path';
+import { join, resolve as resolvePath } from 'path';
 import { template, templateSettings } from 'dot';
+import { Attachment } from 'nodemailer/lib/mailer';
+
+export interface CompiledTemplate {
+    content: string;
+    attachments: Attachment[];
+}
 
 @Injectable()
 export class MailTemplateService {
@@ -22,7 +28,7 @@ export class MailTemplateService {
                         throw new Error(`Missing template directory or not mail configuration provided`);
                     }
                     
-                    this._templateDir = cfg.templateDirectory;
+                    this._templateDir = resolvePath(cfg.templateDirectory);
                     this._checkTemplateDirectory();
                     resolve();
                 })
@@ -53,13 +59,37 @@ export class MailTemplateService {
         }
     }
 
-    async compileTemplate(name: string, context: any, defaultTemplate?: string): Promise<string> {
+    async compileTemplate(name: string, context: any, defaultTemplate?: string): Promise<CompiledTemplate> {
         const content = await this.readTemplate(name, defaultTemplate);
         const temp = template(content, {
             ...templateSettings,
             strip: false,
         });
-        return temp(context);
+        let compiledContent = temp(context);
+        
+        let attachments: Attachment[] = [];
+
+        // search for all src="" attributes and create attachments and cids for them
+        compiledContent = compiledContent.replace(/src\s*=\s*"(.+?)"/, (_, src) => {
+            attachments.push({
+                path: resolvePath(join(this._templateDir, src)),
+                cid: src,
+                filename: src,
+            });
+            
+            return `src="cid:${src}"`;
+        });
+        
+        attachments.forEach(attachment => {
+            if (!existsSync(attachment.path as string)) {
+                throw new Error(`Image "${attachment.path} not found"`);
+            }
+        })
+        
+        return {
+            content: compiledContent,
+            attachments: attachments,
+        }
     }
     
     private _checkTemplateDirectory() {

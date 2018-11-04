@@ -29,8 +29,13 @@ export class ConfigService {
         this._loadConfig();
     }
     
-    async config() {
-        return await this._configPromise;
+    config<T>(key: string): T;
+    config(key?: string) {
+        if (!!key) {
+            return this._config[key];
+        }
+        
+        return this._config;
     }
     
     async getConfig<T>(key: string): Promise<T|undefined> {

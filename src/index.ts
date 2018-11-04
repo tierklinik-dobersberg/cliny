@@ -10,7 +10,7 @@ import { OpeningHoursPlugin } from './openinghours';
 import { RosterPlugin } from './roster';
 import { UserPlugin } from './users';
 import 'restify-cookies';
-import { MailServicePlugin, MailConfig, ConfigPlugin } from './services';
+import { MailServicePlugin, MailConfig, ConfigPlugin, MailTemplateService } from './services';
 import { createTestAccount } from 'nodemailer';
 
 // Unfortunately the typedefinitions for restify-cookies lacks the CookieParser
@@ -34,6 +34,7 @@ export class Cliny {
 
     constructor(private _logger: Logger,
                 private _doorController: DoorController,
+                private _templateService: MailTemplateService,
                 private _httpServer: HttpServer,
                 @Inject(forwardRef(() => ClinyBootstrap)) main: any) {
         this._main = main;                 
