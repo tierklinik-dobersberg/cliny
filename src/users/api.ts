@@ -5,7 +5,7 @@ import { BadRequestError, ForbiddenError, NotAuthorizedError, InternalServerErro
 import { Authenticated, CLINY_COOKIE, getAuthenticatedUser, RoleRequired } from './auth';
 import { IUser } from './models';
 import { UserController } from './user.controller';
-import { MailService } from '../services';
+import { MailService, ConfigService, GlobalConfig } from '../services';
 
 const defaultInvitationTemplate = `
 <html>
@@ -35,6 +35,7 @@ Dies ist einen automatisch generierte Nachricht
 export class UserAPI {
     constructor(private _log: Logger,
                 private _userCtrl: UserController,
+                private _configService: ConfigService,
                 private _mailService: MailService) {
         this._log = this._log.createChild('api:user');
     }
@@ -152,11 +153,17 @@ export class UserAPI {
                 if (!user.mailAddress) {
                     this._log.warn(`Cannot send invitation mail as no mail address was provided`);
                 } else {
+                    const global = this._configService.config<GlobalConfig>('global');
+                    let host = `http://${req.header('host')}`;
+                    if (!!global && !!global.host) {
+                        host = `${global.protocol || 'http'}://${global.host}`;
+                    }
+                    
                     this._mailService.sendMailTemplate(user.mailAddress, 'Benutzerkonto erstellt', 'invitation_mail', {
                         username: user.username,
                         password: user.password,
                         fullname: !!user.firstname ? `${user.firstname} ${user.lastname}` : user.username,
-                        host: req.header('host', ''),
+                        host: host,
                     }, undefined, defaultInvitationTemplate)
                         .then(() => this._log.info(`Invitation mail for user ${user.username} sent`))
                         .catch(err => this._log.error(`Failed to send invitation mail for user ${user.username}: ${err}`));

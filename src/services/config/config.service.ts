@@ -4,6 +4,11 @@ import { readFile, writeFile } from 'fs';
 export const CLINY_CONFIG_FILE = new InjectionToken<string>('CLINY_CONFIG_FILE');
 export const CLINY_CONFIG_KEY = new InjectionToken<string>('CLINY_CONFIG_KEY');
 
+export interface GlobalConfig {
+    host?: string;
+    protocol?: string;
+}
+
 export function provideConfigKey(key: string): Provider {
     return {
         provide: CLINY_CONFIG_KEY,

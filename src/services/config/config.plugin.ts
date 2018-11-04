@@ -1,9 +1,10 @@
 import { Plugin, Provider } from '@jsmon/core';
-import { ConfigService, CLINY_CONFIG_FILE } from './config.service';
+import { ConfigService, CLINY_CONFIG_FILE, provideConfigKey } from './config.service';
 
 @Plugin({
     providers: [
-        ConfigService
+        ConfigService,
+        provideConfigKey('global'),
     ]
 })
 export class ConfigPlugin {
