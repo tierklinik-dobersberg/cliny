@@ -47,11 +47,11 @@ export class MailService {
     }
 
     /**
-     * Sends a text message using the configured mail transport
+     * Sends a HTML message using the configured mail transport
      * 
      * @param to - One or more receipients in the format of either "name@domain.tld" or "Name <name@domain.tld>"
      * @param subject - The subject for the mail message
-     * @param message  - The mail text message itself
+     * @param message  - The mail HTML message itself
      */
     sendMail(to: string|string[], subject: string, message: string, sender?: string, attachments?: Attachment[]): Promise<void> {
         if (!this._enabled) {
