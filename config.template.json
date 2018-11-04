@@ -1,4 +1,8 @@
 {
+    "global": {
+        "host": "example.com",
+        "protocol": "https"
+    },
     "door": {
         "delays": {
             "open": 30,
@@ -15,6 +19,7 @@
         "auth": {
             "user": "name@example.com",
             "pass": "password"
-        }
+        },
+        "templateDirectory": "./templates"
     }
 }
