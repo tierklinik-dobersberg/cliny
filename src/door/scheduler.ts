@@ -1,10 +1,9 @@
-import {Injectable, Optional, Inject, Logger, NoopLogAdapter, OnDestroy} from '@jsmon/core';
-import {writeFileSync, readFileSync, existsSync} from 'fs';
-import {Subscription, Subject, Observable} from 'rxjs';
-import {OpeningHourConfig, OpeningHoursController, ITimeFrame} from '../openinghours';
-import {join} from 'path';
-import {Ticker} from './ticker';
+import { Injectable, Logger, NoopLogAdapter, OnDestroy } from '@jsmon/core';
 import moment from 'moment';
+import { Observable, Subject, Subscription } from 'rxjs';
+import { ITimeFrame, OpeningHourConfig, OpeningHoursController } from '../openinghours';
+import { ConfigService } from '../services';
+import { Ticker } from './ticker';
 
 /**
  * Possible door states
@@ -33,11 +32,6 @@ export interface Delay {
     before: number;
     after: number;
 }
-
-/**
- * Injection token for the scheduler file path
- */
-export const SCHEDULER_FILE = 'SCHEDULER_FILE';
 
 export interface DoorConfig {
     /**
@@ -114,24 +108,18 @@ export class Scheduler implements OnDestroy {
 
     constructor(private _ticker: Ticker,
                 private _openingHours: OpeningHoursController,
-                @Inject(SCHEDULER_FILE) @Optional() private _filePath?: string,
+                private _configService: ConfigService,
                 private _log: Logger = new Logger(new NoopLogAdapter)) {
                 
         this._log = this._log.createChild('scheduler');
-
-        if (this._filePath === undefined) {
-            if (!process.env.HOME) {
-                throw new Error(`Cannot determinate default location for the scheduler file`);
-            }
-            
-            this._filePath = join(process.env.HOME!, '.door-controller.sched');
-        }
         
-        this._log.info(`Using configuration from: ${this._filePath}`);
-        
-        this._openingHours.ready
-            .then(() => {
-                this._readAndParseConfig();
+        Promise.all([this._openingHours.ready, this._configService.getConfig<SchedulerConfig>('door')])
+            .then(([_, config]) => {
+                if (!config) {
+                    throw new Error(`Invalid door scheduler configuration`);
+                }
+                
+                this.setConfig(config);
 
                 this._openingHours.getConfig()
                     .then(config => {
@@ -177,8 +165,7 @@ export class Scheduler implements OnDestroy {
         this._setupInterval();
         
         if (write) {
-            const content = JSON.stringify(this._config!, undefined, 4);
-            writeFileSync(this.configPath, content);
+            this._configService.setConfig('scheduler', this._config);
         }
     }
     
@@ -225,27 +212,17 @@ export class Scheduler implements OnDestroy {
             currentOverwrite: !!this.config.currentOverwrite ? { ...this.config.currentOverwrite } : null
         };
     }
-
-    /**
-     * Returns the path to the scheduler configuration file
-     */
-    public get configPath(): string {
-        // once the constructor executed we must have a filePath (or the constructor would have thrown)
-        return this._filePath!;
-    }
     
     /**
      * Returns a readonly version of the scheduler config
-     * Will load the scheduler configuration if required
      * 
      * May throw an error if the configuration could not be loaded
      * or is invalid
      */
     public get config(): Readonly<SchedulerConfig> {
         if (!this._config) {
-            this._readAndParseConfig();
+            throw new Error(`Scheduler configuration not yet loaded`);
         }
-        
         return this._config!;
     }
     
@@ -431,28 +408,6 @@ export class Scheduler implements OnDestroy {
         result.setMilliseconds(0);
         
         return result;
-    }
-
-    /**
-     * @internal
-     * 
-     * Reads and validates the scheduler configuration from disk
-     */
-    private _readAndParseConfig(): void {
-        if (!existsSync(this.configPath)) {
-            throw new Error(`Config file ${this.configPath} not found`);
-        }
-        
-        const content = readFileSync(this.configPath);
-        let config: SchedulerConfig;
-
-        try {
-            config = JSON.parse(content.toString());
-        } catch (err) {
-            throw new Error(`Failed to parse configuration file ${this.configPath}: ${err}`);
-        }
-        
-        this.setConfig(config);
     }
     
     private _setupInterval() {

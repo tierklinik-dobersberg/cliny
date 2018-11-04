@@ -1,14 +1,14 @@
-import {Plugin, Provider} from '@jsmon/core';
-import {Scheduler, SCHEDULER_FILE} from './scheduler';
-import {BOARD_CONFIG, BoardConfig, BoardController, DummyBoardController} from './board';
-import {DoorController} from './door.controller';
-import {API, NotOpenMiddleware} from './server';
-import {Ticker} from './ticker';
-import {HttpServer} from '@jsmon/net/http/server';
+import { Plugin, Provider } from '@jsmon/core';
+import { HttpServer } from '@jsmon/net/http/server';
+import { provideConfigKey } from '../services';
+import { BoardConfig, BoardController, BOARD_CONFIG, DummyBoardController } from './board';
+import { DoorController } from './door.controller';
+import { Scheduler } from './scheduler';
+import { API, NotOpenMiddleware } from './server';
+import { Ticker } from './ticker';
 
 export interface DoorPluginConfig {
     useDummyBoard?: boolean;
-    schedulerConfig?: string;
     boardConfig?: BoardConfig;
 }
 
@@ -19,6 +19,7 @@ export interface DoorPluginConfig {
         NotOpenMiddleware,
         Ticker,
         Scheduler,
+        provideConfigKey('door'),
     ]
 })
 export class DoorPlugin {
@@ -39,13 +40,6 @@ export class DoorPlugin {
             });
         } else {
             providers.push(BoardController);
-        }
-        
-        if (!!cfg.schedulerConfig) {
-            providers.push({
-                provide: SCHEDULER_FILE,
-                useValue: cfg.schedulerConfig,
-            });
         }
         
         return providers;

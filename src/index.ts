@@ -10,7 +10,7 @@ import { OpeningHoursPlugin } from './openinghours';
 import { RosterPlugin } from './roster';
 import { UserPlugin } from './users';
 import 'restify-cookies';
-import { MailServicePlugin, MailConfig } from './services';
+import { MailServicePlugin, MailConfig, ConfigPlugin } from './services';
 import { createTestAccount } from 'nodemailer';
 
 // Unfortunately the typedefinitions for restify-cookies lacks the CookieParser
@@ -25,7 +25,8 @@ const CookieParser = require('restify-cookies');
         HTTPServerPlugin,
         RosterPlugin,
         UserPlugin,
-        MailServicePlugin
+        MailServicePlugin,
+        ConfigPlugin
     ],
 })
 export class Cliny {
@@ -88,7 +89,6 @@ export class ClinyBootstrap implements Runnable {
     
     @Option({
         name: 'board-config',
-        short: 'c',
         argType: 'string',
         description: 'Path to the board configuration (JSON format)',
         valuePlaceholder: 'CONFIG'
@@ -96,13 +96,14 @@ export class ClinyBootstrap implements Runnable {
     public readonly boardConfig: string|undefined;
 
     @Option({
-        name: 'scheduler-config',
-        short: 's',
+        name: 'config',
+        short: 'c',
         argType: 'string',
-        description: 'Path to the scheduler configuration file',
-        valuePlaceholder: 'CONFIG'
+        description: 'Path to the configuration file',
+        valuePlaceholder: 'CONFIG',
+        required: true
     })
-    public readonly schedulerConfigPath: string|undefined;
+    public readonly configPath: string = '';
     
     @Option({
         name: 'dummy-board',
@@ -143,9 +144,6 @@ export class ClinyBootstrap implements Runnable {
         
         // Setup door/scheduler config
         const doorConfig: DoorPluginConfig = {};
-        if (!!this.schedulerConfigPath) {
-            doorConfig.schedulerConfig = this.schedulerConfigPath;
-        }
         
         // Setup board config
         if (!!this.useDummyBoard) {
@@ -192,6 +190,7 @@ export class ClinyBootstrap implements Runnable {
                 sync: this.syncDb,
                 logQueries: logDBQueries,
             }),
+            ConfigPlugin.useConfigFile(this.configPath),
             ...(mailConfig !== null ? [MailServicePlugin.withConfig(mailConfig)] : [])
         ]);
         
