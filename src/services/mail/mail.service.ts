@@ -4,6 +4,7 @@ import { createTransport } from "nodemailer";
 import Mail from "nodemailer/lib/mailer";
 import { MailOptions } from "nodemailer/lib/sendmail-transport";
 import { ConfigService } from "../config";
+import { MailTemplateService } from "./template.service";
 
 @Injectable()
 export class MailService {
@@ -11,6 +12,7 @@ export class MailService {
     private _enabled: boolean;
     
     constructor(private _log: Logger,
+                private _templateService: MailTemplateService,
                 @Optional() @Inject(MAIL_CONFIG) private _cfg: MailConfig,
                 private _configService: ConfigService) {
         this._log = this._log.createChild('mail');
@@ -38,11 +40,6 @@ export class MailService {
             this._enabled = true;
             
             this._log.info(`using "${this._cfg.auth!.user}" via "${this._cfg.host}"`);
-            
-            this.sendMail('patrick.pacher@gmail.com', 'test-mail', 'this is a test mail from cliny')
-                .then(() => this._log.info(`Test mail sent`))
-                .catch(err => this._log.error(`Failed to send test mail: ${err}`));
-            
         } catch (err) {
             this._log.error(err);
             this._enabled = false;

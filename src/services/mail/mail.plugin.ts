@@ -2,10 +2,12 @@ import { Plugin, Provider } from '@jsmon/core';
 import { MailConfig, MAIL_CONFIG } from './config';
 import { MailService } from './mail.service';
 import { provideConfigKey } from '../config';
+import { MailTemplateService } from './template.service';
 
 @Plugin({
     providers: [
         MailService,
+        MailTemplateService,
         provideConfigKey('mail'),
     ]
 })

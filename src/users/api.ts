@@ -5,11 +5,13 @@ import { BadRequestError, ForbiddenError, NotAuthorizedError, InternalServerErro
 import { Authenticated, CLINY_COOKIE, getAuthenticatedUser, RoleRequired } from './auth';
 import { IUser } from './models';
 import { UserController } from './user.controller';
+import { MailService } from '../services';
 
 @Injectable()
 export class UserAPI {
     constructor(private _log: Logger,
-                private _userCtrl: UserController) {
+                private _userCtrl: UserController,
+                private _mailService: MailService) {
         this._log = this._log.createChild('api:user');
     }
     

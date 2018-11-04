@@ -5,4 +5,5 @@ export const MAIL_CONFIG = new InjectionToken<MailConfig>('MAIL_CONFIG');
 
 export interface MailConfig extends Options {
     sender: string;
+    templateDirectory: string;
 }
