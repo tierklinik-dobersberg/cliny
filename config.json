@@ -1,8 +1,0 @@
-{
-    "delays": {
-        "open": 30,
-        "close": 15
-    },
-    "reconfigureInterval": 300,
-    "currentOverwrite": null
-}

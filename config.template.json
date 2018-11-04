@@ -1,0 +1,20 @@
+{
+    "door": {
+        "delays": {
+            "open": 30,
+            "close": 15
+        },
+        "reconfigureInterval": 10,
+        "currentOverwrite": null
+    },
+    "mail": {
+        "host": "smtp.example.com",
+        "port": 465,
+        "secure": true,
+        "sender": "name@example.com",
+        "auth": {
+            "user": "name@example.com",
+            "pass": "password"
+        }
+    }
+}
