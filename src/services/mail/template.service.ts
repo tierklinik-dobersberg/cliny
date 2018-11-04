@@ -3,7 +3,7 @@ import { ConfigService } from '../config';
 import { MailConfig } from './config';
 import { existsSync, statSync, readFileSync, readFile } from 'fs';
 import { join, resolve } from 'path';
-import { compile } from 'dot';
+import { template, templateSettings } from 'dot';
 
 @Injectable()
 export class MailTemplateService {
@@ -55,7 +55,11 @@ export class MailTemplateService {
 
     async compileTemplate(name: string, context: any, defaultTemplate?: string): Promise<string> {
         const content = await this.readTemplate(name, defaultTemplate);
-        return compile(content, context)();
+        const temp = template(content, {
+            ...templateSettings,
+            strip: false,
+        });
+        return temp(context);
     }
     
     private _checkTemplateDirectory() {

@@ -7,6 +7,29 @@ import { IUser } from './models';
 import { UserController } from './user.controller';
 import { MailService } from '../services';
 
+const defaultInvitationTemplate = `
+<html>
+<body>
+Hallo {{= it.fullname}},<br />
+<br />
+Ein neuer Account in der Tierklinik Dobersberg wurde für dich erstellt.<br />
+<br />
+Benutzername: <b>{{= it.username}}</b> <br />
+Passwort: <b>{{= it.password}}</b> <br />
+<br />
+Du kannst dich jederzeit unter der folgenden Web-Adresse anmelden:<br />
+<br />
+{{= it.host}}<br />
+<br />
+Dein<br />
+cliny<br />
+<br />
+----<br />
+Dies ist einen automatisch generierte Nachricht
+</body>
+</html>
+`;
+
 @Injectable()
 export class UserAPI {
     constructor(private _log: Logger,
@@ -110,7 +133,6 @@ export class UserAPI {
     @RoleRequired('admin')
     async createUser(req: Request, res: Response, next: Next) {
         let user: IUser & {password: string} = req.body;
-        
         user.username = req.params.username;
 
         let err = this._validateUser(user);
@@ -120,7 +142,26 @@ export class UserAPI {
         }
         
         try {
+            // TODO(ppacher): may default to false instead of true
+            const sendMail = req.body.sendMail || true;
+            
             await this._userCtrl.createUser(user, user.password);
+            
+            if (sendMail) {
+                if (!user.mailAddress) {
+                    this._log.warn(`Cannot send invitation mail as no mail address was provided`);
+                } else {
+                    this._mailService.sendMailTemplate(user.mailAddress, 'Benutzerkonto erstellt', 'invitation_mail', {
+                        username: user.username,
+                        password: user.password,
+                        fullname: !!user.firstname ? `${user.firstname} ${user.lastname}` : user.username,
+                        host: req.header('host', ''),
+                    }, undefined, defaultInvitationTemplate)
+                        .then(() => this._log.info(`Invitation mail for user ${user.username} sent`))
+                        .catch(err => this._log.error(`Failed to send invitation mail for user ${user.username}: ${err}`));
+                }
+            }
+
             res.send(204);
             next();
         } catch(err) {
