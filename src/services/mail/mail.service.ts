@@ -63,8 +63,7 @@ export class MailService {
             from: sender || this._cfg.sender,
             to: Array.isArray(to) ? to.join(' ,') : to,
             subject: subject,
-            text: '',
-            html: message
+            html: message,
         };
 
         return this._transport.sendMail(opts)
@@ -72,7 +71,6 @@ export class MailService {
     
     async sendMailTemplate(to: string|string[], subject: string, template: string, context: any, sender?: string, defaultTemplate?: string): Promise<void> {
         const message = await this._templateService.compileTemplate(template, context, defaultTemplate);
-        console.log(message);
         return await this.sendMail(to, subject, message, sender);
     }
 }

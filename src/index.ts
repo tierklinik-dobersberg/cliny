@@ -174,7 +174,7 @@ export class ClinyBootstrap implements Runnable {
                     user: result.user,
                     pass: result.pass
                 },
-                sender: 'test@tierklinik-dobersberg.at',
+                sender: result.user,
                 templateDirectory: ''
             }
             
