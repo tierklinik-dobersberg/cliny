@@ -5,13 +5,15 @@ import { HttpServer, HTTPServerPlugin } from '@jsmon/net/http/server';
 import { readFileSync } from 'fs';
 import { plugins } from 'restify';
 import { DatabasePlugin } from './database';
-import { BoardConfig, DoorController, DoorPlugin, DoorPluginConfig } from './door';
+import { BoardConfig, DoorController, DoorPlugin, DoorPluginConfig, BoardController } from './door';
 import { OpeningHoursPlugin } from './openinghours';
 import { RosterPlugin } from './roster';
 import { UserPlugin } from './users';
 import 'restify-cookies';
-import { MailServicePlugin, MailConfig, ConfigPlugin, MailTemplateService } from './services';
+import { MailServicePlugin, MailConfig, ConfigPlugin, MailTemplateService, RPCPlugin, DoorControllerRPC, ConfigService } from './services';
 import { createTestAccount } from 'nodemailer';
+import { config } from 'rxjs';
+import { MqttPlugin } from '@jsmon/net/mqtt';
 
 // Unfortunately the typedefinitions for restify-cookies lacks the CookieParser
 // default export (e.g. there's no "parse" method)
@@ -26,8 +28,16 @@ const CookieParser = require('restify-cookies');
         RosterPlugin,
         UserPlugin,
         MailServicePlugin,
-        ConfigPlugin
+        ConfigPlugin,
+        RPCPlugin,
+        MqttPlugin,
     ],
+    providers: [
+        {
+            provide: BoardController,
+            useClass: DoorControllerRPC
+        }
+    ]
 })
 export class Cliny {
     private _main: ClinyBootstrap;
@@ -36,6 +46,7 @@ export class Cliny {
                 private _doorController: DoorController,
                 private _templateService: MailTemplateService,
                 private _httpServer: HttpServer,
+                private _doorRPC: DoorControllerRPC,
                 @Inject(forwardRef(() => ClinyBootstrap)) main: any) {
         this._main = main;                 
             
@@ -47,7 +58,7 @@ export class Cliny {
         OpeningHoursPlugin.setupRoutes('/openinghours', this._httpServer);
         UserPlugin.setupRoutes('/users', this._httpServer);
         RosterPlugin.setupRoutes('/roster', this._httpServer);
-
+        
         // Start serving
         this._logger.info(`Listening on ${this._main.port}`);
         this._httpServer.listen(this._main.port);
@@ -193,15 +204,25 @@ export class ClinyBootstrap implements Runnable {
                 logQueries: logDBQueries,
             }),
             ConfigPlugin.useConfigFile(this.configPath),
+            ConfigService,
             ...(mailConfig !== null ? [MailServicePlugin.withConfig(mailConfig)] : [])
         ]);
         
-        // bootstrap and run cliny
-        const app = new Bootstrap()
+        const configService = appInjector.get<ConfigService>(ConfigService);
+        
+        const bootstrapper = new Bootstrap()
             .withInjector(appInjector)
             .withProvider(Cliny)
             .withLogger(this._log.createChild('cliny'))
-            .create(Cliny);
+
+        const mqttConfig = await configService.getConfig<{url?: string}>('mqtt');
+        if (!!mqttConfig) {
+            if (!!mqttConfig.url)
+            bootstrapper.withProvider(RPCPlugin.useMQTTBroker(mqttConfig.url));
+        }
+        
+        // bootstrap and run cliny
+        const app = bootstrapper.create(Cliny);
             
         await app.waitForTermination();
         this._log.info('Shutdown');

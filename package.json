@@ -44,6 +44,7 @@
     "figlet": "^1.2.1",
     "jsonpath": "^1.0.0",
     "moment": "^2.22.2",
+    "mqtt": "^2.18.8",
     "nodemailer": "^4.6.8",
     "onoff": "^3.2.2",
     "reflect-metadata": "^0.1.12",

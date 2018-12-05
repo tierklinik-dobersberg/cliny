@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>Code coverage report for src/openinghours/openinghours.controller.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../prettify.css" />
+    <link rel="stylesheet" href="../../base.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+<body>
+<div class='wrapper'>
+  <div class='pad1'>
+    <h1>
+      <a href="../../index.html">All files</a> / <a href="index.html">src/openinghours</a> openinghours.controller.ts
+    </h1>
+    <div class='clearfix'>
+      <div class='fl pad1y space-right2'>
+        <span class="strong">14.04% </span>
+        <span class="quiet">Statements</span>
+        <span class='fraction'>8/57</span>
+      </div>
+      <div class='fl pad1y space-right2'>
+        <span class="strong">0% </span>
+        <span class="quiet">Branches</span>
+        <span class='fraction'>0/16</span>
+      </div>
+      <div class='fl pad1y space-right2'>
+        <span class="strong">0% </span>
+        <span class="quiet">Functions</span>
+        <span class='fraction'>0/12</span>
+      </div>
+      <div class='fl pad1y space-right2'>
+        <span class="strong">11.32% </span>
+        <span class="quiet">Lines</span>
+        <span class='fraction'>6/53</span>
+      </div>
+    </div>
+  </div>
+  <div class='status-line low'></div>
+<pre><table class="coverage">
+<tr><td class="line-count quiet">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+160
+161
+162
+163
+164
+165</td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Injectable, Logger, OnDestroy } from '@jsmon/core';
+import { Database } from '../database';
+import { OpeningHour, TimeFrame, ITimeFrame } from './models';
+import { Repository, LessThan, MoreThan } from 'typeorm';
+import { Subject, Observable } from 'rxjs';
+&nbsp;
+export interface OpeningHourConfig {
+    [day: number]: ITimeFrame[];
+}
+&nbsp;
+@Injectable()
+export class OpeningHoursController implements OnDestroy {
+    public readonly ready: Promise&lt;void&gt;;
+    
+    private _resolve: () =&gt; void;
+    private _openingHoursRepo: Repository&lt;OpeningHour&gt;;
+    private _timeFramesRepo: Repository&lt;TimeFrame&gt;;
+    private <span class="cstat-no" title="statement not covered" >_changes: Subject&lt;OpeningHourConfig&gt; = new Subject();</span>
+&nbsp;
+<span class="fstat-no" title="function not covered" >    get </span>changes(): Observable&lt;OpeningHourConfig&gt; {
+<span class="cstat-no" title="statement not covered" >        return this._changes.asObservable();</span>
+    }
+    
+<span class="fstat-no" title="function not covered" >    constructor(private <span class="cstat-no" title="statement not covered" ></span>_db: Database,</span>
+                private <span class="cstat-no" title="statement not covered" >_log: Logger)</span> {
+                
+<span class="cstat-no" title="statement not covered" >        this._log = this._log.createChild('db:opening-hours');</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >        this.ready = new Promise(<span class="fstat-no" title="function not covered" >resolve</span> =&gt; <span class="cstat-no" title="statement not covered" >this._resolve = resolve)</span>;</span>
+<span class="cstat-no" title="statement not covered" >        this._setup();</span>
+    }
+    
+<span class="fstat-no" title="function not covered" >    onDestroy</span>() {
+<span class="cstat-no" title="statement not covered" >        this._changes.complete();</span>
+    }
+&nbsp;
+    /**
+     * Returns a list of time frames for a given weekday
+     * 
+     * @param weekday - The number of the week day to retrieve time frames for
+     */
+    public async <span class="fstat-no" title="function not covered" >getTimesForDay</span>(weekday: number): Promise&lt;ITimeFrame[]&gt; {
+<span class="cstat-no" title="statement not covered" >        if (weekday &lt; 0  || weekday &gt; 6) {</span>
+<span class="cstat-no" title="statement not covered" >            throw new Error(`Invalid week day`);</span>
+        }
+        const day = <span class="cstat-no" title="statement not covered" >await this._openingHoursRepo.findOne(weekday, {relations: ['times']});</span>
+        
+        // TODO(ppacher): assert
+        
+<span class="cstat-no" title="statement not covered" >        return day!.times;</span>
+    }
+    
+    /**
+     * Adds a time frame to the opening hours of a given weekday
+     * 
+     * @param weekday - The number of the weekday (0 = sunday, 6 = saturday)
+     * @param t - The time frame to add
+     */
+    public async <span class="fstat-no" title="function not covered" >addTimeFrame</span>(weekday: number, t: ITimeFrame) {
+        // check if we already have a time-frame that overlaps the new one
+        let overlappingFrames = <span class="cstat-no" title="statement not covered" >await this._timeFramesRepo!.find({</span>
+            where: {
+                openingHour: {
+                    weekDay: weekday
+                },
+                start: MoreThan(t.start),
+                end: LessThan(t.end)
+            }
+        });
+        
+<span class="cstat-no" title="statement not covered" >        if (overlappingFrames.length &gt; 1) {</span>
+<span class="cstat-no" title="statement not covered" >            this._log.warn(`Seems like there are multiple overlapping frames within the database`);</span>
+        }
+        
+<span class="cstat-no" title="statement not covered" >        if (overlappingFrames.length &gt; 0) {</span>
+<span class="cstat-no" title="statement not covered" >            throw new Error(`Cannot add overlapping time frame. There is already one frame defined for ${overlappingFrames[0].start} -&gt; ${overlappingFrames[0].end}`);</span>
+        }
+        
+<span class="cstat-no" title="statement not covered" >        await this._timeFramesRepo!.save(</span>
+            new TimeFrame()
+                .setEnd(t.end)
+                .setStart(t.start)
+                .setOpeningHour({weekDay: weekday} as any)
+        );
+        
+<span class="cstat-no" title="statement not covered" >        this._changes.next(await this.getConfig());</span>
+    }
+&nbsp;
+    /**
+     * 
+     * @param weekday - The number of the weekday (0 = sunday, 6 = saturday)
+     * @param t - The time frame or ID of the timeframe to delete
+     */
+    public async <span class="fstat-no" title="function not covered" >deleteTimeFrame</span>(weekday: number, t: ITimeFrame|number) {
+<span class="cstat-no" title="statement not covered" >        if (typeof t === 'number') {</span>
+<span class="cstat-no" title="statement not covered" >            await this._timeFramesRepo.delete(t);</span>
+<span class="cstat-no" title="statement not covered" >            return;</span>
+        }
+        
+<span class="cstat-no" title="statement not covered" >        await this._timeFramesRepo.delete({start: t.start, end: t.end, openingHour: {weekDay: weekday}});</span>
+        
+<span class="cstat-no" title="statement not covered" >        this._changes.next(await this.getConfig());</span>
+<span class="cstat-no" title="statement not covered" >        return;</span>
+    }
+    
+    /**
+     * Returns the current opening hour configuraiton from the database
+     */
+    public async <span class="fstat-no" title="function not covered" >getConfig</span>(): Promise&lt;OpeningHourConfig&gt; {
+        let all = <span class="cstat-no" title="statement not covered" >await this._openingHoursRepo.find({relations: ['times']});</span>
+        
+        let result: OpeningHourConfig = <span class="cstat-no" title="statement not covered" >{};</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >        all.forEach(<span class="fstat-no" title="function not covered" >config</span> =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >            result[config.weekDay] = config.times || [];</span>
+        });
+&nbsp;
+<span class="cstat-no" title="statement not covered" >        return result;</span>
+    }
+&nbsp;
+    
+    /**
+     * @internal
+     * 
+     * Set up the database connection and perform maintainance tasks
+     */
+    private async <span class="fstat-no" title="function not covered" >_setup</span>() {
+<span class="cstat-no" title="statement not covered" >        await this._db.ready;</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >        this._openingHoursRepo = this._db.getRepository(OpeningHour);</span>
+<span class="cstat-no" title="statement not covered" >        this._timeFramesRepo = this._db.getRepository(TimeFrame);</span>
+        
+<span class="cstat-no" title="statement not covered" >        await this._ensureAllDays();</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >        this._resolve();</span>
+<span class="cstat-no" title="statement not covered" >        this._log.info(`database initialized`);</span>
+    }
+    
+    /**
+     * @internal
+     * 
+     * Ensures that the database contains an entry for each day of week
+     */
+    private async <span class="fstat-no" title="function not covered" >_ensureAllDays</span>() {
+        let all = <span class="cstat-no" title="statement not covered" >await this._openingHoursRepo.find();</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >        if (all.length &lt; 7) {</span>
+<span class="cstat-no" title="statement not covered" >            this._log.info(`Need to insert missing days`);</span>
+            let toCreate: OpeningHour[] = <span class="cstat-no" title="statement not covered" >[];</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >            for (let i = 0; i &lt; 7; i++) {</span>
+<span class="cstat-no" title="statement not covered" >                if (all.some(<span class="fstat-no" title="function not covered" >o </span>=&gt; <span class="cstat-no" title="statement not covered" >o.weekDay === i)</span> === false) {</span>
+                    let h = <span class="cstat-no" title="statement not covered" >new OpeningHour();</span>
+<span class="cstat-no" title="statement not covered" >                    h.weekDay = i;</span>
+<span class="cstat-no" title="statement not covered" >                    toCreate.push(h);</span>
+                }
+            }
+            
+<span class="cstat-no" title="statement not covered" >            await this._openingHoursRepo.save(toCreate);</span>
+        } else {
+<span class="cstat-no" title="statement not covered" >            this._log.info(`All days available`);</span>
+        }
+    }
+}
+    </pre></td></tr>
+</table></pre>
+<div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+  Code coverage
+  generated by <a href="https://istanbul.js.org/" target="_blank">istanbul</a> at Thu Oct 18 2018 08:59:03 GMT+0200 (Central European Summer Time)
+</div>
+</div>
+<script src="../../prettify.js"></script>
+<script>
+window.onload = function () {
+        if (typeof prettyPrint === 'function') {
+            prettyPrint();
+        }
+};
+</script>
+<script src="../../sorter.js"></script>
+</body>
+</html>
