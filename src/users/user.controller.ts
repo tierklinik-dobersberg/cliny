@@ -93,6 +93,7 @@ export class UserController {
          .setLastName(user.lastname)
          .setPhoneNumber(user.phoneNumber)
          .setMailAddress(user.mailAddress)
+         .setGoogleCalendarID(user.googleCalendarID || null)
          .setEnabled(user.enabled);
         
         await this._userRepo.save(u);
@@ -241,6 +242,7 @@ export class UserController {
             mailAddress: user.mailAddress,
             mustChangePassword: user.mustChangePassword || false,
             rosterSchedules: user.rosterSchedules || [],
+            googleCalendarID: user.googleCalendarID || null,
         };
     }
 }

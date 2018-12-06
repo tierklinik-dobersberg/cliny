@@ -2,18 +2,18 @@ import { Command, Option, run } from '@jsmon/cli';
 import { Runnable } from '@jsmon/cli/interfaces';
 import { App, Bootstrap, ConsoleAdapter, forwardRef, Inject, Injector, Logger, LogLevel, useLoggingAdapter } from '@jsmon/core';
 import { HttpServer, HTTPServerPlugin } from '@jsmon/net/http/server';
-import { readFileSync } from 'fs';
+import { MqttPlugin } from '@jsmon/net/mqtt';
+import { createTestAccount } from 'nodemailer';
 import { plugins } from 'restify';
+import 'restify-cookies';
+import { CalendarPlugin } from './calendar';
 import { DatabasePlugin } from './database';
-import { BoardConfig, DoorController, DoorPlugin, DoorPluginConfig, BoardController } from './door';
+import { DoorPlugin } from './door';
 import { OpeningHoursPlugin } from './openinghours';
 import { RosterPlugin } from './roster';
+import { ConfigPlugin, ConfigService, MailConfig, MailServicePlugin, RPCPlugin } from './services';
+import { GoogleAPIPlugin, GoogleAuthorizationService } from './services/google';
 import { UserPlugin } from './users';
-import 'restify-cookies';
-import { MailServicePlugin, MailConfig, ConfigPlugin, MailTemplateService, RPCPlugin, DoorControllerRPC, ConfigService } from './services';
-import { createTestAccount } from 'nodemailer';
-import { config } from 'rxjs';
-import { MqttPlugin } from '@jsmon/net/mqtt';
 
 // Unfortunately the typedefinitions for restify-cookies lacks the CookieParser
 // default export (e.g. there's no "parse" method)
@@ -31,23 +31,20 @@ const CookieParser = require('restify-cookies');
         ConfigPlugin,
         RPCPlugin,
         MqttPlugin,
-    ],
-    providers: [
-        {
-            provide: BoardController,
-            useClass: DoorControllerRPC
-        }
+        GoogleAPIPlugin,
+        CalendarPlugin
     ]
 })
 export class Cliny {
     private _main: ClinyBootstrap;
 
     constructor(private _logger: Logger,
-                private _doorController: DoorController,
-                private _templateService: MailTemplateService,
                 private _httpServer: HttpServer,
-                private _doorRPC: DoorControllerRPC,
+                private _googleAuth: GoogleAuthorizationService,
                 @Inject(forwardRef(() => ClinyBootstrap)) main: any) {
+                
+        this._googleAuth.authorize();
+        
         this._main = main;                 
             
         this._httpServer.server.use(plugins.bodyParser());
@@ -58,6 +55,7 @@ export class Cliny {
         OpeningHoursPlugin.setupRoutes('/openinghours', this._httpServer);
         UserPlugin.setupRoutes('/users', this._httpServer);
         RosterPlugin.setupRoutes('/roster', this._httpServer);
+        CalendarPlugin.setupRoutes('/calendar', this._httpServer)
         
         // Start serving
         this._logger.info(`Listening on ${this._main.port}`);
@@ -100,14 +98,6 @@ export class ClinyBootstrap implements Runnable {
     public readonly port: number = 8081;
     
     @Option({
-        name: 'board-config',
-        argType: 'string',
-        description: 'Path to the board configuration (JSON format)',
-        valuePlaceholder: 'CONFIG'
-    })
-    public readonly boardConfig: string|undefined;
-
-    @Option({
         name: 'config',
         short: 'c',
         argType: 'string',
@@ -116,13 +106,6 @@ export class ClinyBootstrap implements Runnable {
         required: true
     })
     public readonly configPath: string = '';
-    
-    @Option({
-        name: 'dummy-board',
-        description: 'Use the dummy board implementation for testing',
-        argType: 'boolean'
-    })
-    public readonly useDummyBoard: boolean = false;
     
     @Option({
         name: 'sync-db',
@@ -154,25 +137,6 @@ export class ClinyBootstrap implements Runnable {
             this._log.debug(`setting log-level to ${this.logLevel}`);
         }
         
-        // Setup door/scheduler config
-        const doorConfig: DoorPluginConfig = {};
-        
-        // Setup board config
-        if (!!this.useDummyBoard) {
-            doorConfig.useDummyBoard = this.useDummyBoard;
-        }
-        
-        if (!!this.boardConfig) {
-            const configContent = readFileSync(this.boardConfig);
-            try {
-                const config: BoardConfig = JSON.parse(configContent.toString());
-                doorConfig.boardConfig = config;
-            } catch(err) {
-                this._log.error(`Failed to parse board configuration: ${err}`);
-                return;
-            }
-        }
-        
         // Setup mail config
         let mailConfig: MailConfig | null = null;
         if (this.testMailAccount) {
@@ -198,7 +162,6 @@ export class ClinyBootstrap implements Runnable {
         }
         
         const appInjector = this._injector.createChild([
-            ...DoorPlugin.forConfig(doorConfig),
             DatabasePlugin.useConfig({
                 sync: this.syncDb,
                 logQueries: logDBQueries,

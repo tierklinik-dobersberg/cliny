@@ -1,10 +1,9 @@
 import { Injectable } from '@jsmon/core';
 import { MqttService } from '@jsmon/net/mqtt';
-import { IBoardController } from '../../door';
 import { take, timeout } from 'rxjs/operators';
 
 @Injectable()
-export class DoorControllerRPC implements IBoardController {
+export class DoorControllerRPC {
     constructor(private _mqtt: MqttService) {}
     
     /** Sends a lock command via MQTT to the door controller */

@@ -20,6 +20,7 @@ export interface IUser {
     phoneNumber?: string | null;
     mailAddress?: string | null;
     mustChangePassword?: boolean;
+    googleCalendarID?: string | null;
 }
 
 @Entity()
@@ -60,6 +61,9 @@ export class User implements IUser {
     @Column({type: 'text', nullable: true, default: null})
     icon: string|null;
     
+    @Column({type: 'text', nullable: true})
+    googleCalendarID: string|null;
+    
     @ManyToMany(() => RosterSchedule, schedule => schedule.users)
     rosterSchedules: RosterSchedule[];
     
@@ -71,6 +75,11 @@ export class User implements IUser {
     
     setMustChangePassword(v: boolean): this {
         this.mustChangePassword = v;
+        return this;
+    }
+    
+    setGoogleCalendarID(id: string|null): this {
+        this.googleCalendarID = id;
         return this;
     }
     

@@ -1,13 +1,12 @@
-import {Injectable, Logger} from '@jsmon/core';
-import {BoardController} from './board';
-import {Scheduler} from './scheduler';
-import { OpeningHoursController } from '../openinghours';
+import { Injectable, Logger } from '@jsmon/core';
+import { DoorControllerRPC } from '../services';
+import { Scheduler } from './scheduler';
 
 @Injectable()
 export class DoorController {
     constructor(private _log: Logger,
                 private _scheduler: Scheduler,
-                private _board: BoardController) {
+                private _board: DoorControllerRPC) {
         this._log = this._log.createChild('door-controller');
         
         this._runServer();

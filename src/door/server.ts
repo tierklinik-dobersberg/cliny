@@ -2,8 +2,8 @@ import {Injectable, Inject, forwardRef, Logger} from '@jsmon/core';
 import {Use, Get, Post, Delete, Put, HTTPServerPlugin, Middleware} from '@jsmon/net/http/server';
 import {Request, Response, Next} from 'restify';
 import {Scheduler} from './scheduler';
-import {BoardController} from './board';
 import { Authenticated } from '../users';
+import { DoorControllerRPC } from '../services';
 
 export class NotOpenMiddleware implements Middleware<never> {
     constructor(@Inject(forwardRef(() => API)) private _api: any,
@@ -38,7 +38,7 @@ export class API {
     }
 
     constructor(private _scheduler: Scheduler,
-                private _board: BoardController) {}
+                private _board: DoorControllerRPC) {}
     
     @Get('/status')
     @Authenticated()
