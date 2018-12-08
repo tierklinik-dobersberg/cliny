@@ -14,6 +14,7 @@ import { RosterPlugin } from './roster';
 import { ConfigPlugin, ConfigService, MailConfig, MailServicePlugin, RPCPlugin } from './services';
 import { GoogleAPIPlugin, GoogleAuthorizationService } from './services/google';
 import { UserPlugin } from './users';
+import { IntegrationPlugin } from './integration';
 
 // Unfortunately the typedefinitions for restify-cookies lacks the CookieParser
 // default export (e.g. there's no "parse" method)
@@ -32,7 +33,8 @@ const CookieParser = require('restify-cookies');
         RPCPlugin,
         MqttPlugin,
         GoogleAPIPlugin,
-        CalendarPlugin
+        CalendarPlugin,
+        IntegrationPlugin
     ]
 })
 export class Cliny {
@@ -43,10 +45,8 @@ export class Cliny {
                 private _googleAuth: GoogleAuthorizationService,
                 @Inject(forwardRef(() => ClinyBootstrap)) main: any) {
                 
-        this._googleAuth.authorize();
-        
         this._main = main;                 
-            
+        
         this._httpServer.server.use(plugins.bodyParser());
         this._httpServer.server.use(plugins.queryParser());
         this._httpServer.server.use(CookieParser.parse)
@@ -55,7 +55,8 @@ export class Cliny {
         OpeningHoursPlugin.setupRoutes('/openinghours', this._httpServer);
         UserPlugin.setupRoutes('/users', this._httpServer);
         RosterPlugin.setupRoutes('/roster', this._httpServer);
-        CalendarPlugin.setupRoutes('/calendar', this._httpServer)
+        CalendarPlugin.setupRoutes('/calendar', this._httpServer);
+        IntegrationPlugin.setupRoutes('/config/integration', this._httpServer);
         
         // Start serving
         this._logger.info(`Listening on ${this._main.port}`);

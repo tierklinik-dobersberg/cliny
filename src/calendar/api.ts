@@ -3,7 +3,9 @@ import { Next, Request, Response } from "restify";
 import { BadRequestError, NotFoundError } from "restify-errors";
 import { Authenticated, RoleRequired } from "../users";
 import { CalendarListEntry, CalendarService } from "./calendar.service";
+import { Injectable } from "@jsmon/core";
 
+@Injectable()
 export class CalendarAPI {
     constructor(private _calendarService: CalendarService) {}
     
@@ -16,11 +18,13 @@ export class CalendarAPI {
             res.send(200, clas);
             next();
         } catch (err) {
+            console.error(err);
             next(err);
         }
     }
     
     @Delete('/:calendarId/events/:eventId')
+    @Authenticated()
     async deleteEvent(req: Request, res: Response, next: Next) {
         try {
             const calId = req.params.calendarId;
@@ -31,6 +35,7 @@ export class CalendarAPI {
             res.send(204);
             next();
         } catch (err) {
+            console.error(err);
             next(err);
         }
     }
@@ -67,6 +72,7 @@ export class CalendarAPI {
             res.send(200, {id: eventId, calendarId: id});
             next();
         } catch (err) {
+            console.error(err);
             next(err);
         }
     }
@@ -79,14 +85,6 @@ export class CalendarAPI {
             const from = req.query.from;
             const to = req.query.to;
             
-            if (!!from && (isNaN(+from) || typeof from !== 'string')) {
-                throw new BadRequestError(`Invalid type for form filter. Expected a timestamp or ISO time string`);
-            }
-            
-            if (!!to && (isNaN(+to) || typeof to !== 'string')) {
-                throw new BadRequestError(`Invalid type for the to filter. Expected a timestamp or ISO time string`);
-            }
-            
             let events = await this._calendarService.getEventsForCalendar(id, {
                 fromDate: !!from ? new Date(from) : undefined,
                 toDate: !!to ? new Date(to) : undefined,
@@ -95,6 +93,7 @@ export class CalendarAPI {
             res.send(200, events);
             next();
         } catch (err) {
+            console.error(err);
             next(err);
         }
     }
@@ -112,14 +111,6 @@ export class CalendarAPI {
             const from = req.query.from;
             const to = req.query.to;
             
-            if (!!from && (isNaN(+from) || typeof from !== 'string')) {
-                throw new BadRequestError(`Invalid type for form filter. Expected a timestamp or ISO time string`);
-            }
-            
-            if (!!to && (isNaN(+to) || typeof to !== 'string')) {
-                throw new BadRequestError(`Invalid type for the to filter. Expected a timestamp or ISO time string`);
-            }
-            
             let events = await this._calendarService.getEventsForCalendars(ids, {
                 fromDate: !!from ? new Date(from) : undefined,
                 toDate: !!to ? new Date(to) : undefined,
@@ -128,6 +119,7 @@ export class CalendarAPI {
             res.send(200, events);
             next();
         } catch (err) {
+            console.error(err);
             next(err);
         }
     }
@@ -150,6 +142,7 @@ export class CalendarAPI {
             res.send(200, result);
             next();
         } catch (err) {
+            console.error(err);
             next(err);
         }
     }
@@ -175,6 +168,7 @@ export class CalendarAPI {
             res.send(204);
             next();
         } catch (err) {
+            console.error(err);
             next(err);
         }
     }
@@ -195,6 +189,7 @@ export class CalendarAPI {
             res.send(204);
             next();
         } catch (err) {
+            console.error(err);
             next(err);
         }
     }

@@ -77,7 +77,9 @@ export class CalendarService {
                 id: event.id!,
                 calendarId: calendarId,
                 description: event.description,
-                summary: event.summary || ''
+                summary: event.summary || '',
+                start: new Date(event.start!.dateTime || event.start!.date!).getTime(),
+                end: new Date(event.end!.dateTime || event.end!.date!).getTime(), 
             };
 
             appointments.push(ap);
