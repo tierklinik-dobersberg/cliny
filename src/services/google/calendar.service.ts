@@ -57,10 +57,10 @@ export class GoogleCalendarService {
      * and return the calendar object
      * 
      * @param summary - The name of the new calendar
-     * @param color - The color for the new calendar
+     * @param backgroundColor - The color for the new calendar
      * @param [timezone] - The timezone for the new calendar. Defaults to "Europe/Vienna"
      */
-    async createCalendar(summary: string, color: string, timezone: string = 'Europe/Vienna'): Promise<calendar_v3.Schema$CalendarListEntry> {
+    async createCalendar(summary: string, backgroundColor: string, foregroundColor: string, timezone: string = 'Europe/Vienna'): Promise<calendar_v3.Schema$CalendarListEntry> {
         const cal = await this.calendar();
 
         const response = await cal.calendars.insert({
@@ -77,7 +77,8 @@ export class GoogleCalendarService {
         const listResponse = await cal.calendarList.insert({
             colorRgbFormat: true,
             requestBody: {
-                backgroundColor: color,
+                backgroundColor: backgroundColor,
+                foregroundColor: foregroundColor,
                 id: response.data.id
             }
         });
@@ -97,7 +98,7 @@ export class GoogleCalendarService {
      * @param [color] - An optional new color for the calendar
      * @param [timeZone] - An optional new timezone for the calendar
      */
-    async updateCalendar(id: string, summary?: string, color?: string, timeZone?: string) {
+    async updateCalendar(id: string, summary?: string, backgroundColor?: string, foregroundColor?: string, timeZone?: string) {
         const cal = await this.calendar();
 
         const calendar = await cal.calendarList.get({
@@ -133,12 +134,14 @@ export class GoogleCalendarService {
             }
         }
         
-        if (calendar.data.backgroundColor !== color && !!color) {
+        if ((calendar.data.backgroundColor !== backgroundColor && !!backgroundColor) ||
+            (calendar.data.foregroundColor !== foregroundColor && !!foregroundColor)) {
             const updateResponse = await cal.calendarList.update({
                 calendarId: id,
                 colorRgbFormat: true,
                 requestBody: {
-                    backgroundColor: color
+                    backgroundColor: backgroundColor || calendar.data.backgroundColor,
+                    foregroundColor: foregroundColor || calendar.data.foregroundColor
                 }
             });
 

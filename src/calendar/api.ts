@@ -133,11 +133,15 @@ export class CalendarAPI {
                 throw new BadRequestError(`Missing name for the new calendar`);
             }
             
-            if (!cal.color) {
-                throw new BadRequestError(`Missing color for the new calendar`);
+            if (!cal.backgroundColor) {
+                throw new BadRequestError(`Missing background color for the new calendar`);
             }
             
-            const result = await this._calendarService.createCalendar(cal.name, cal.color, cal.timeZone);
+            if (!cal.foregroundColor) {
+                throw new BadRequestError(`Missing foreground color for the new calendar`);
+            }
+            
+            const result = await this._calendarService.createCalendar(cal.name, cal.backgroundColor, cal.foregroundColor, cal.timeZone);
             
             res.send(200, result);
             next();
@@ -184,7 +188,7 @@ export class CalendarAPI {
             
             const body = req.body;
             
-            await this._calendarService.updateCalendar(id, body.name, body.color, body.timeZone);
+            await this._calendarService.updateCalendar(id, body.name, body.backgroundColor, body.foregroundColor, body.timeZone);
 
             res.send(204);
             next();

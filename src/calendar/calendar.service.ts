@@ -4,7 +4,8 @@ import { GoogleCalendarService } from "../services";
 export interface CalendarListEntry {
     id: string;
     name: string;
-    color: string;
+    backgroundColor: string;
+    foregroundColor: string;
 }
 
 export interface Appointment {
@@ -132,7 +133,8 @@ export class CalendarService {
                 return {
                     id: cal.id!,
                     name: cal.summaryOverride || cal.summary!,
-                    color: cal.backgroundColor!
+                    backgroundColor: cal.backgroundColor!,
+                    foregroundColor: cal.foregroundColor!
                 };
             });
     }
@@ -145,12 +147,13 @@ export class CalendarService {
      * @param color - The background color for the new calendar
      * @param [timeZone] - An optional timezone for the new calendar. See {@link GoogleCalendarService#createCalendar} for more information
      */
-    async createCalendar(name: string, color: string, timeZone?: string): Promise<CalendarListEntry> {
-        const result = await this._googleCalService.createCalendar(name, color, timeZone);
+    async createCalendar(name: string, backgroundColor: string, foregroundColor: string, timeZone?: string): Promise<CalendarListEntry> {
+        const result = await this._googleCalService.createCalendar(name, backgroundColor, foregroundColor, timeZone);
 
         return {
             id: result.id!,
-            color: result.backgroundColor!,
+            backgroundColor: result.backgroundColor!,
+            foregroundColor: result.foregroundColor!,
             name: result.summaryOverride || result.summary!
         };
     }
@@ -172,7 +175,7 @@ export class CalendarService {
      * @param [color] - An optional new color for the calendar
      * @param [timeZone] - An optional new timeZone for the calendar
      */
-    async updateCalendar(id: string, name?: string, color?: string, timeZone?: string): Promise<void> {
-        await this._googleCalService.updateCalendar(id, name, color, timeZone);
+    async updateCalendar(id: string, name?: string, backgroundColor?: string, foregroundColor?: string, timeZone?: string): Promise<void> {
+        await this._googleCalService.updateCalendar(id, name, backgroundColor, foregroundColor, timeZone);
     }
 }
