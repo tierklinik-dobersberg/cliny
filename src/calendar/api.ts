@@ -51,11 +51,11 @@ export class CalendarAPI {
             
             const event = req.body;
 
-            if (!event.start || typeof event.start !== 'number') {
+            if (!event.start || isNaN(+event.start)) {
                 throw new BadRequestError(`Missing start time for the new event`)
             }
             
-            if (!event.end || typeof event.end !== 'number') {
+            if (!event.end || isNaN(+event.end)) {
                 throw new BadRequestError(`Missing end time for the new event`);
             }
             
