@@ -1,10 +1,12 @@
-import { Injectable } from '@jsmon/core';
+import { Injectable, Logger } from '@jsmon/core';
 import { Middleware, Use } from '@jsmon/net/http/server';
 import { Next, Request, Response } from 'restify';
-import { Role, IUser } from './models';
+import { Role, IUser, User } from './models';
 import { UserController } from './user.controller';
 import { getContext } from '../utils';
-import { NotAuthorizedError, ForbiddenError, UnauthorizedError, LockedError } from 'restify-errors';
+import { ForbiddenError, UnauthorizedError, LockedError } from 'restify-errors';
+import { ConfigService } from '../services';
+import { Netmask } from 'netmask';
 
 export const CLINY_COOKIE = 'cliny';
 export const CLINY_AUTH_CONTEXT = 'cliny-user';
@@ -28,6 +30,17 @@ export interface AuthOptions {
     roles?: Role[];
 }
 
+export interface AuthConfig {
+    /** A list of IP address or IPv4 subnets that should be auto-authenticated using a guest account */
+    allowedIPs?: string[];
+    
+    /** A list of IP address or IPv4 subnets that should be excluded from the allowedIPs list */
+    excludeIPs?: string[];
+    
+    /** The name for the guest account user. Not that the user must exist */
+    guest?: string;
+}
+
 /**
  * Middleware to ensure a HTTP request is authenticated
  * The authentication token may either be specified in the CLINY_COOKIE
@@ -37,10 +50,49 @@ export interface AuthOptions {
  */
 @Injectable()
 export class AuthenticationMiddleware implements Middleware<AuthOptions> {
-    constructor(private _userController: UserController) {}
+    private _allowedIPs: (string|Netmask)[] = [];
+    private _excludedIPs: (string|Netmask)[] = [];
+    private _guest: string|null = null;
+
+    constructor(private _userController: UserController,
+                private _log: Logger,
+                private _config: ConfigService) {
+                
+        this._log = this._log.createChild('auth');
+
+        this._config.getConfig('auth')
+                    .then((cfg?: AuthConfig) => {
+                        if (!cfg) {
+                            return;
+                        }
+
+                        this._guest = cfg.guest || null;
+                        
+                        (cfg.allowedIPs || [])
+                            .forEach(ip => {
+                                if (ip.includes('/')) {
+                                    this._allowedIPs.push(new Netmask(ip))
+                                } else {
+                                    this._allowedIPs.push(ip);
+                                }
+                            });
+
+                        (cfg.excludeIPs || [])
+                            .forEach(ip => {
+                                if (ip.includes('/')) {
+                                    this._excludedIPs.push(new Netmask(ip))
+                                } else {
+                                    this._excludedIPs.push(ip);
+                                }
+                            })
+                    });
+    }
     
     async handle(options: AuthOptions|undefined, req: Request, res: Response, next: Next) {
         try {
+            
+            let user: IUser | null = null;
+
             let authTokenValue = req.cookies[CLINY_COOKIE];
             
             if (!authTokenValue) {
@@ -55,7 +107,44 @@ export class AuthenticationMiddleware implements Middleware<AuthOptions> {
                 }
             }
             
-            let user = await this._userController.getUserForToken(authTokenValue || '');
+            if (!!authTokenValue) {
+                user = await this._userController.getUserForToken(authTokenValue);
+            }
+            
+            if (!user && this._allowedIPs.length > 0) {
+                this._log.debug(`Trying to authenticate request by IP: ${req.connection.remoteAddress}`);
+
+                let isAllowedIP = !!req.connection.remoteAddress && this._allowedIPs.some(ip => {
+                    if (ip instanceof Netmask) {
+                        return ip.contains(req.connection.remoteAddress!)
+                    }
+                    
+                    return ip === req.connection.remoteAddress!;
+                });
+                
+                let isExcludedIP = !!req.connection.remoteAddress && this._excludedIPs.some(ip => {
+                    if (ip instanceof Netmask) {
+                        return ip.contains(req.connection.remoteAddress!)
+                    }
+                    
+                    return ip === req.connection.remoteAddress!;
+                });
+                
+                // Check if the remoteAddress is an allowed IP address and not specified as excluded
+                if (isAllowedIP && !isExcludedIP) {
+                    this._log.info(`Client authenticated by remote address: ${req.connection.remoteAddress}`);
+                    if (!this._guest || this._guest.length === 0) {
+                        this._log.warn('Request allowed by remote address but no guest user name configured');
+                    } else {
+                        user = await this._userController.getUser(this._guest);
+
+                        if (!user) {
+                            this._log.warn(`Guest user with name "${this._guest}" does not exist`);
+                        }
+                    }
+                }
+            }
+
             if (!user) {
                 next(new UnauthorizedError('Authorization required'));
                 return;

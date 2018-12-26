@@ -6,11 +6,13 @@ import {UserAPI} from './api';
 import {HttpServer} from '@jsmon/net/http/server';
 import { AuthenticationMiddleware } from './auth';
 import { AuthToken } from './models/token';
+import { provideConfigKey } from '../services';
 
 @Plugin({
     providers: [
         provideEntity(User),
         provideEntity(AuthToken),
+        provideConfigKey('auth'),
         UserController,
         UserAPI,
         AuthenticationMiddleware
