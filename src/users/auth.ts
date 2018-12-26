@@ -114,7 +114,7 @@ export class AuthenticationMiddleware implements Middleware<AuthOptions> {
             if (!user && this._allowedIPs.length > 0) {
                 this._log.debug(`Trying to authenticate request by IP: ${req.connection.remoteAddress}`);
 
-                let isAllowedIP = !!req.connection.remoteAddress && this._allowedIPs.some(ip => {
+                const isAllowedIP = !!req.connection.remoteAddress && this._allowedIPs.some(ip => {
                     if (ip instanceof Netmask) {
                         return ip.contains(req.connection.remoteAddress!)
                     }
@@ -122,7 +122,7 @@ export class AuthenticationMiddleware implements Middleware<AuthOptions> {
                     return ip === req.connection.remoteAddress!;
                 });
                 
-                let isExcludedIP = !!req.connection.remoteAddress && this._excludedIPs.some(ip => {
+                const isExcludedIP = !!req.connection.remoteAddress && this._excludedIPs.some(ip => {
                     if (ip instanceof Netmask) {
                         return ip.contains(req.connection.remoteAddress!)
                     }
