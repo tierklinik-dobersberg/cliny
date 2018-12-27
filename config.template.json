@@ -3,6 +3,11 @@
         "host": "example.com",
         "protocol": "https"
     },
+    "auth": {
+        "allowedIPs": [ "10.1.1.1" ],
+        "guest": "guest-user-name",
+        "trustedProxies": [ "127.0.0.1", "::ffff:127.0.0.1" ]
+    },
     "door": {
         "delays": {
             "open": 30,
@@ -24,5 +29,13 @@
     },
     "mqtt": {
         "url": "mqtt://localhost"
+    },
+    "scheduler": {
+        "delays": {
+            "open": 30,
+            "close": 15
+        },
+        "reconfigureInterval": 10,
+        "currentOverwrite": null
     }
 }
