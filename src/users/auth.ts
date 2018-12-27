@@ -39,6 +39,9 @@ export interface AuthConfig {
     
     /** The name for the guest account user. Not that the user must exist */
     guest?: string;
+    
+    /** A list of proxy IP addresses that should be trusted to set a correct X-Forwarded-For header */
+    trustedProxies?: string[];
 }
 
 /**
@@ -52,6 +55,7 @@ export interface AuthConfig {
 export class AuthenticationMiddleware implements Middleware<AuthOptions> {
     private _allowedIPs: (string|Netmask)[] = [];
     private _excludedIPs: (string|Netmask)[] = [];
+    private _trustedProxies: (string|Netmask)[] = [];
     private _guest: string|null = null;
 
     constructor(private _userController: UserController,
@@ -84,7 +88,16 @@ export class AuthenticationMiddleware implements Middleware<AuthOptions> {
                                 } else {
                                     this._excludedIPs.push(ip);
                                 }
-                            })
+                            });
+                            
+                        (cfg.trustedProxies || [])
+                            .forEach(ip => {
+                                if (ip.includes('/')) {
+                                    this._trustedProxies.push(new Netmask(ip));
+                                } else {
+                                    this._trustedProxies.push(ip);
+                                }
+                            });
                     });
     }
     
@@ -113,26 +126,42 @@ export class AuthenticationMiddleware implements Middleware<AuthOptions> {
             
             if (!user && this._allowedIPs.length > 0) {
                 this._log.debug(`Trying to authenticate request by IP: ${req.connection.remoteAddress}`);
-
-                const isAllowedIP = !!req.connection.remoteAddress && this._allowedIPs.some(ip => {
-                    if (ip instanceof Netmask) {
-                        return ip.contains(req.connection.remoteAddress!)
-                    }
-                    
-                    return ip === req.connection.remoteAddress!;
-                });
                 
-                const isExcludedIP = !!req.connection.remoteAddress && this._excludedIPs.some(ip => {
-                    if (ip instanceof Netmask) {
-                        return ip.contains(req.connection.remoteAddress!)
+                let hasIP = (remote: string, ips: (string|Netmask)[]) => {
+                    return ips.some(ip => {
+                        if (ip instanceof Netmask) {
+                            return ip.contains(remote);
+                        }
+                        
+                        return ip === remote;
+                    })
+                }
+                
+                const trustedProxy = !!req.connection.remoteAddress && hasIP(req.connection.remoteAddress, this._trustedProxies);
+                
+                let remoteAddress = req.connection.remoteAddress;
+                
+                if (trustedProxy) {
+                    this._log.debug(`Request from trusted proxy ${req.connection.remoteAddress}`);
+
+                    const xForwardedFor = req.header('x-forwarded-for', '')
+                                             .split(',')
+                                             .map(p => p.trim());
+                                             
+                    if (xForwardedFor.length === 1 && xForwardedFor[0].length > 0) {
+                        remoteAddress = xForwardedFor[0];                                             
+                        this._log.debug(`Trusting proxy ${req.connection.remoteAddress!} on X-Forwarded-For header: ${remoteAddress}`)
+                    } else if (xForwardedFor.length > 1) {
+                        this._log.warn(`Ignoring X-Forwarded-For header from proxy ${req.connection.remoteAddress}. Too many IPs (${req.header('x-forwarded-for', '')})`);
                     }
-                    
-                    return ip === req.connection.remoteAddress!;
-                });
+                }
+                
+                const isAllowedIP = hasIP(remoteAddress!, this._allowedIPs);
+                const isExcludedIP = hasIP(remoteAddress!, this._excludedIPs);
                 
                 // Check if the remoteAddress is an allowed IP address and not specified as excluded
                 if (isAllowedIP && !isExcludedIP) {
-                    this._log.info(`Client authenticated by remote address: ${req.connection.remoteAddress}`);
+                    this._log.info(`Client authenticated by remote address: ${remoteAddress}`);
                     if (!this._guest || this._guest.length === 0) {
                         this._log.warn('Request allowed by remote address but no guest user name configured');
                     } else {
