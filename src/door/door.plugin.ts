@@ -20,4 +20,6 @@ export class DoorPlugin {
     static setupRoutes(prefix: string, srv: HttpServer) {
         srv.mount(prefix, API);
     }
+
+    constructor(_: DoorController) {}
 }

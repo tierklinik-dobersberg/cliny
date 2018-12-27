@@ -13,6 +13,7 @@ export class DoorController {
     }
     
     private async _runServer() {
+        this._log.info(`Starting door controller ...`);
         let running = false;
         this._scheduler.state
             .subscribe(async state => {
@@ -35,6 +36,8 @@ export class DoorController {
                         await this._board.open();
                         break;
                     }
+                    
+                    this._log.info(`Door state updated to ${state}`);
                 } catch (err) {
                     this._log.error(`Failed to set door state to ${state}: ${err}`);
                 }
