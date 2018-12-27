@@ -129,8 +129,13 @@ export class AuthenticationMiddleware implements Middleware<AuthOptions> {
                 
                 let hasIP = (remote: string, ips: (string|Netmask)[]) => {
                     return ips.some(ip => {
-                        if (ip instanceof Netmask) {
-                            return ip.contains(remote);
+                        try {
+                            if (ip instanceof Netmask) {
+                                return ip.contains(remote);
+                            }
+                        } catch (err) {
+                            this._log.error(`Failed to validate IP ${remote} against ${ip.toString()}: ${err}`);
+                            return false;
                         }
                         
                         return ip === remote;
