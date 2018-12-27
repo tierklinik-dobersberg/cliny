@@ -15,6 +15,7 @@ import { ConfigPlugin, ConfigService, MailConfig, MailServicePlugin, RPCPlugin }
 import { GoogleAPIPlugin, GoogleAuthorizationService } from './services/google';
 import { UserPlugin } from './users';
 import { IntegrationPlugin } from './integration';
+import { FileConsoleAdapter } from './utils';
 
 // Unfortunately the typedefinitions for restify-cookies lacks the CookieParser
 // default export (e.g. there's no "parse" method)
@@ -76,7 +77,7 @@ export class Cliny {
     version: '0.0.1',
     providers: [
         Logger,
-        useLoggingAdapter(ConsoleAdapter),
+        useLoggingAdapter(FileConsoleAdapter),
     ]
 })
 export class ClinyBootstrap implements Runnable {
