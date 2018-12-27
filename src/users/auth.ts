@@ -128,6 +128,15 @@ export class AuthenticationMiddleware implements Middleware<AuthOptions> {
                 this._log.debug(`Trying to authenticate request by IP: ${req.connection.remoteAddress}`);
                 
                 let hasIP = (remote: string, ips: (string|Netmask)[]) => {
+                    const IPv4ToIPv6Template = /^:(ffff)?:(?!0)(?!.*\.$)((1?\d?\d|25[0-5]|2[0-4]\d)(\.|$)){4}$/;
+
+                    // If we are listening on both IPv4 and IPv6 the OS converts any IPv4 address
+                    // into the IPv6 space by prefixing the IPv4 address with :ffff:
+                    // It's save to strip it off
+                    if (IPv4ToIPv6Template.test(remote)) {
+                        remote = remote.replace(/^.*:/, '');
+                    }
+
                     return ips.some(ip => {
                         try {
                             if (ip instanceof Netmask) {
