@@ -1,10 +1,10 @@
 import {Entity, PrimaryGeneratedColumn, Column, OneToMany, JoinTable} from 'typeorm';
-import { RosterSchedule } from './schedule';
+import { RosterSchedule, IRosterSchedule } from './schedule';
 import moment from 'moment';
 
 export interface IRoster {
     id: number;
-    schedules: RosterSchedule[]
+    schedules: IRosterSchedule[]
     
     calendarWeek: string;
     

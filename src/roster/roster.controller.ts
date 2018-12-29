@@ -132,7 +132,22 @@ export class RosterController {
             return [];
         }
         
-        return rosters;
+        return rosters.map(r => {
+            return {
+                ...r,
+                schedules: r.schedules.map(s => {
+                    return {
+                        ...s,
+                        users: s.users.map(u => {
+                            return {
+                                ...u,
+                                icon: null,
+                            }
+                        })
+                    }
+                })
+            }
+        });
     }
     
     private async _setup() {
