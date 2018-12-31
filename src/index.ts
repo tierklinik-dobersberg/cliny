@@ -17,6 +17,7 @@ import { UserPlugin } from './users';
 import { IntegrationPlugin } from './integration';
 import { FileConsoleAdapter } from './utils';
 import { HolidaysPlugin } from './services/holidays';
+import { HttpClientPlugin } from '@jsmon/net/http/client';
 
 // Unfortunately the typedefinitions for restify-cookies lacks the CookieParser
 // default export (e.g. there's no "parse" method)
@@ -24,6 +25,7 @@ const CookieParser = require('restify-cookies');
 
 @App({
     plugins: [
+        HttpClientPlugin,
         DoorPlugin,
         DatabasePlugin,
         OpeningHoursPlugin,
@@ -51,6 +53,8 @@ export class Cliny {
                 
         this._main = main;                 
         
+        this._httpServer.disableValidation();
+
         this._httpServer.server.use(plugins.bodyParser());
         this._httpServer.server.use(plugins.queryParser());
         this._httpServer.server.use(CookieParser.parse)

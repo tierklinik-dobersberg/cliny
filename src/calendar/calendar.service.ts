@@ -1,5 +1,8 @@
-import { Injectable } from "@jsmon/core";
+import { Injectable, App } from "@jsmon/core";
 import { GoogleCalendarService } from "../services";
+import { Holiday, HolidayService } from "../services/holidays";
+import { BadRequestError } from "restify-errors";
+import moment = require("moment");
 
 export interface CalendarListEntry {
     id: string;
@@ -26,6 +29,9 @@ export interface Appointment {
 
     // The timestamp the event ends
     end: number;
+
+    // Whether or not this is a full-day entry
+    fullDay: boolean;
 }
 
 export interface AppointmentFilter {
@@ -33,9 +39,12 @@ export interface AppointmentFilter {
     toDate?: Date;
 }
 
+const InternHolidayCalendar = 'intern:holidays';
+
 @Injectable()
 export class CalendarService {
-    constructor(private _googleCalService: GoogleCalendarService) {}
+    constructor(private _googleCalService: GoogleCalendarService,
+                private _holidayService: HolidayService) {}
     
     /**
      * Creates a new event in the given calendar and returns it's id
@@ -61,18 +70,71 @@ export class CalendarService {
     }
 
     /**
+     * @internal
+     * 
+     * Returns all holidays for the given filter. If no filter is specified,
+     * all holidays for the given year are returned.
+     * 
+     * @param filter - An optional appointment filter
+     */
+    private async _getHolidays(filter: AppointmentFilter = {}): Promise<Appointment[]> {
+        let start = filter.fromDate || new Date();
+        let end = filter.toDate || start;
+        
+        // TODO(ppacher): check if UTC year is correct here
+        let startYear = start.getUTCFullYear();
+        let endYear = end.getUTCFullYear();
+        
+        if (endYear < startYear) {
+            throw new BadRequestError(`toDate is before startDate`);
+        }
+        
+        let appointments: Appointment[] = [];
+        let current = startYear;
+
+        do {
+            const res = await this._holidayService.getHolidaysForYear(current);
+            let holidays: Appointment[] = res.map(h => {
+                return {
+                    id: h.localName,
+                    summary: h.name,
+                    calendarId: InternHolidayCalendar,
+                    start: moment(h.date).startOf('day').valueOf(),
+                    end: moment(h.date).endOf('day').valueOf(),
+                    fullDay: true,
+                }
+            });
+            
+            holidays = holidays.filter(h => {
+                return start === end || start.getTime() >= h.start && end.getTime() <= h.end
+            });
+
+            appointments = appointments.concat(holidays);
+
+            current++;
+        } while( current <= endYear );
+
+        return appointments;
+    }
+
+    /**
      * Returns a list of appointments for the given calendar
      * 
      * @param calendarId - The ID of the calendar to load events from
      */
     async getEventsForCalendar(calendarId: string, filter: AppointmentFilter = {}): Promise<Appointment[]> {
         const appointments: Appointment[] = [];
+
+        if (calendarId === InternHolidayCalendar) {
+            return await this._getHolidays(filter);
+        }
         
         const events = await this._googleCalService.listEvents(calendarId, {
             from: filter.fromDate,
             to: filter.toDate,
         });
         
+        // TODO: check if this is a full-day event
         (events.items || []).forEach(event => {
             const ap: Appointment = {
                 id: event.id!,
@@ -81,6 +143,7 @@ export class CalendarService {
                 summary: event.summary || '',
                 start: new Date(event.start!.dateTime || event.start!.date!).getTime(),
                 end: new Date(event.end!.dateTime || event.end!.date!).getTime(), 
+                fullDay: false,
             };
 
             appointments.push(ap);

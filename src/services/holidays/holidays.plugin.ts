@@ -8,4 +8,6 @@ import { provideConfigKey } from "../config";
         provideConfigKey('holidays')
     ]
 })
-export class HolidaysPlugin {}
+export class HolidaysPlugin {
+    constructor(_: HolidayService) {}
+}

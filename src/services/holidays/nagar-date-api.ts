@@ -1,11 +1,13 @@
 import { Injectable, Logger } from '@jsmon/core';
+import { HttpClientFactory, HttpClient } from '@jsmon/net/http/client';
 import { CacheService, Cache } from '../cache';
 import { ConfigService } from '../config';
 
-const baseURL = 'https://date.nager.at/api/v1/get/{{country}}/{{year}}';
+const baseURL = 'https://date.nager.at';
+const apiFormat = '/api/v1/get/{{country}}/{{year}}';
 
 export function getHolidayAPIURL(country: string, year: string) {
-    return baseURL
+    return apiFormat
         .replace('{{country}}', country)
         .replace('{{year}}', year);
 }
@@ -36,11 +38,15 @@ export class HolidayService {
     private _cache: Cache<number, Holiday[]>;
     private _enabled: boolean = true;
     private _country: string = 'AT';
+    private _http: HttpClient;
 
     constructor(private _log: Logger,
                 private _config: ConfigService,
+                private _httpClientFactory: HttpClientFactory,
                 private _cacheService: CacheService) {
-                
+        
+        this._http = this._httpClientFactory.create('holidays', baseURL);
+
         this._config.getConfig<HolidaysServiceConfig>('holidays')
                     .then(cfg => {
                         if (!!cfg) {
@@ -58,6 +64,9 @@ export class HolidayService {
                         } else {
                             this._log.warn(`Holidays API disabled`);
                         }
+                        
+                        // we'll definitely need the holiday list for this year so fetch it right away
+                        this.getHolidaysForYear((new Date()).getFullYear());
                     });
 
         // There's no need to cache more than two years of holidays
@@ -76,9 +85,21 @@ export class HolidayService {
         const holidays = this._cache.get(year);    
         
         if (holidays !== undefined) {
+            this._log.debug(`Using cached holiday list for ${this._country} in ${year}`);
             return holidays;
         }
         
-        throw new Error(`not yet implemented`);
+        const url = getHolidayAPIURL(this._country, ''+year);
+        
+        try {
+            const response = await this._http.get<Holiday[]>(url);
+            this._log.debug(`Received holiday list for ${this._country} in ${year} with ${response.length} entries`);
+            this._cache.add(year, response);
+            
+            return response;
+        } catch (err) {
+            this._log.error(`Failed to retrieve holiday list for ${this._country} in ${year}`);
+            return [];
+        }
     }
 }
