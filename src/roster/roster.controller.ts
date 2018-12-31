@@ -142,6 +142,7 @@ export class RosterController {
                             return {
                                 ...u,
                                 icon: null,
+                                iconData: null,
                             }
                         })
                     }
