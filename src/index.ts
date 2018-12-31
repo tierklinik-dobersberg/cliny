@@ -16,6 +16,7 @@ import { GoogleAPIPlugin, GoogleAuthorizationService } from './services/google';
 import { UserPlugin } from './users';
 import { IntegrationPlugin } from './integration';
 import { FileConsoleAdapter } from './utils';
+import { HolidaysPlugin } from './services/holidays';
 
 // Unfortunately the typedefinitions for restify-cookies lacks the CookieParser
 // default export (e.g. there's no "parse" method)
@@ -36,6 +37,7 @@ const CookieParser = require('restify-cookies');
         GoogleAPIPlugin,
         CalendarPlugin,
         IntegrationPlugin,
+        HolidaysPlugin,
         CachePlugin
     ]
 })
