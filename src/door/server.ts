@@ -42,9 +42,9 @@ export class API {
     
     @Get('/status')
     @Authenticated()
-    status(req: Request, res: Response, next: Next) {
+    async status(req: Request, res: Response, next: Next) {
         try {
-            let current = this._scheduler.getConfigForDate(new Date());
+            let current = await this._scheduler.getConfigForDate(new Date());
             
             if (this._open) {
                 current.state = 'open';
@@ -62,9 +62,9 @@ export class API {
     }
     
     @Post('/test')
-    test(req: Request, res: Response, next: Next) {
+    async test(req: Request, res: Response, next: Next) {
         try {
-            let current = this._scheduler.getConfigForDate(new Date(req.body));
+            let current = await this._scheduler.getConfigForDate(new Date(req.body));
             
             if (this._open) {
                 current.state = 'open';
@@ -110,7 +110,7 @@ export class API {
     @Put('/set/:state')
     @Authenticated()
     @GuardOpen()
-    setOverwrite(req: Request, res: Response, next: Next) {
+    async setOverwrite(req: Request, res: Response, next: Next) {
         try {
             const until = req.body;
             
@@ -121,7 +121,7 @@ export class API {
             }
 
             if (until === null) {
-                this._scheduler.clearOverwrite();
+                await this._scheduler.clearOverwrite();
             } else {
                 this._scheduler.setOverwrite(req.params.state, until);
             }
@@ -142,10 +142,10 @@ export class API {
         try {
             this._scheduler.pause(true);
             
-            this._scheduler.clearOverwrite();
+            await this._scheduler.clearOverwrite();
             
             await this._board.lock();
-            const desired = this._scheduler.getConfigForDate(new Date());
+            const desired = await this._scheduler.getConfigForDate(new Date());
             
             switch(desired.state) {
             case 'lock':

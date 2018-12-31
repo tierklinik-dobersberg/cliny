@@ -4,6 +4,7 @@ import { Observable, Subject, Subscription } from 'rxjs';
 import { ITimeFrame, OpeningHourConfig, OpeningHoursController } from '../openinghours';
 import { ConfigService } from '../services';
 import { Ticker } from './ticker';
+import { HolidayService, Holiday } from '../services/holidays';
 
 /**
  * Possible door states
@@ -84,6 +85,7 @@ export class Scheduler implements OnDestroy {
     private readonly _state$: Subject<DoorState> = new Subject();
     private _pause: boolean = false;
     private _currentConfig: OpeningHourConfig;
+    private _holidays: Holiday[] = [];
     
     private get delayBefore(): number {
         if (!this._config || !this._config.delays) {
@@ -109,9 +111,17 @@ export class Scheduler implements OnDestroy {
     constructor(private _ticker: Ticker,
                 private _openingHours: OpeningHoursController,
                 private _configService: ConfigService,
+                private _holidayService: HolidayService,
                 private _log: Logger = new Logger(new NoopLogAdapter)) {
                 
         this._log = this._log.createChild('scheduler');
+        
+        // TODO(ppacher): remove this one as it's only for testing
+        setTimeout(async () => {
+            let start = moment().add(1, 'day').toDate();
+            console.log(start.toISOString());
+            console.log(await this.getConfigForDate(start));
+        }, 5000);
         
         Promise.all([this._openingHours.ready, this._configService.getConfig<SchedulerConfig>('door')])
             .then(([_, config]) => {
@@ -174,12 +184,12 @@ export class Scheduler implements OnDestroy {
      * 
      * @param safeConfig - Whether or not the configuration should be safed to disk
      */
-    public clearOverwrite(safeConfig: boolean = true): void {
+    public async clearOverwrite(safeConfig: boolean = true): Promise<void> {
         const copy = this.copyConfig();
         copy.currentOverwrite = null;
 
         this.setConfig(copy, safeConfig);
-        const desiredState = this.getConfigForDate(new Date());
+        const desiredState = await this.getConfigForDate(new Date());
         this._state$.next(desiredState.state);
     }
     
@@ -232,7 +242,7 @@ export class Scheduler implements OnDestroy {
      * 
      * @param date - The date to retrieve the current door state for
      */
-    public getConfigForDate(date: Date): DoorConfig {
+    public async getConfigForDate(date: Date): Promise<DoorConfig> {
         const weekDay = moment(date).isoWeekday();
         const minutes = date.getHours() * 60 + date.getMinutes();
         
@@ -276,18 +286,32 @@ export class Scheduler implements OnDestroy {
             }
             
             const currentDayConfig = this._currentConfig[weekDay];
+            const holidays = await this._holidayService.getHolidaysForYear(date.getUTCFullYear());
 
             // We now have to check a set of "unlock" time-frames and if we are in the middle of one
             const currentTimeFrame = currentDayConfig.find(frame => Scheduler.isInTimeFrame(this.delays, minutes, frame));
 
-            if (!!currentTimeFrame) {
+            const dateString = moment(date).format('YYYY-MM-DD');
+            const isHoliday = holidays.some(h => {
+                return h.date === dateString;
+            });
+
+            if (isHoliday) {
+                this._log.info(`${date.toISOString()} is a public holiday`);
+            }
+
+            if (!!currentTimeFrame && !isHoliday) {
                 currentState = 'unlock';
                 until = toDate(currentTimeFrame.end, 0, this.delays.after);
                 this._log.info(`Door state '${currentState}' configured from time-frame ${currentTimeFrame.start} - ${currentTimeFrame.end} until ${until}`)
             } else {
-                currentState = 'lock';
-                const next = this._getNextFrame(date);
+                if (!!currentTimeFrame && isHoliday) {
+                    this._log.info(`Found opening hours but it's a holiday`);
+                }
                 
+                currentState = 'lock';
+                // BUG(ppacher): seems to fail somehow :/ at least if we try it for the 01.01.2019
+                const next = this._getNextFrame(date);
                 
                 if (next === null) {
                     this._log.warn(`No active time frame. Current door state is 'locked' but failed to find the next active frame`);
@@ -417,12 +441,12 @@ export class Scheduler implements OnDestroy {
         }
         
         this._tickerSubscription = this._ticker.interval(this.config.reconfigureInterval || 300)
-            .subscribe(() => {
+            .subscribe(async () => {
                 if (this._pause) {
                     return;
                 }
                 
-                const desiredState = this.getConfigForDate(new Date());
+                const desiredState = await this.getConfigForDate(new Date());
                 this._log.info(`Desired door state is ${desiredState.state}ed until ${new Date(desiredState.until).toISOString()}`);
                 this._state$.next(desiredState.state);
             });
