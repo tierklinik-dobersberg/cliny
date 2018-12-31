@@ -13,6 +13,12 @@ export class LRUCache<K, V> extends Cache<K, V> {
     
         this._maxSize = max_size;
     }
+    
+    /** Removes all cache entries */
+    clear() {
+        super.clear();
+        this._lru = [];
+    }
 
     /**
      * Adds a new key-value pair to the cache

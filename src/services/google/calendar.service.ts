@@ -5,6 +5,9 @@ import { PreconditionFailedError, BadRequestError, NotFoundError, InternalServer
 
 @Injectable()
 export class GoogleCalendarService {
+    private _list: calendar_v3.Schema$CalendarList | null = null;
+    private _lastListUpdate: number = 0;
+
     constructor(private _log: Logger,
                 private _googleAuth: GoogleAuthorizationService) {
         this._log = this._log.createChild('google:calendar');
@@ -86,6 +89,8 @@ export class GoogleCalendarService {
         if (!listResponse.data || listResponse.status >= 400) {
             throw new InternalServerError(`Failed to add the new calendar to the list: ${listResponse.statusText}`);
         }
+        
+        this._list = null;
 
         return listResponse.data;
     }
@@ -149,6 +154,8 @@ export class GoogleCalendarService {
                 throw new InternalServerError(`Failed to update calendar color: ${updateResponse.statusText}`);
             }
         }
+
+        this._list = null;
     }
     
     /**
@@ -156,8 +163,20 @@ export class GoogleCalendarService {
      * has access to
      */
     async listCalendars(): Promise<calendar_v3.Schema$CalendarList> {
+        if (this._list !== null && this._lastListUpdate + 10*60*1000 > (new Date()).getTime()) {
+            this._log.info(`Using cached calendar list. Cache valid until ${new Date(this._lastListUpdate + 10*60*1000).toISOString()}`);
+            return this._list;
+        }
+
         const cal = await this.calendar();
-        return (await cal.calendarList.list()).data;
+        const list = (await cal.calendarList.list()).data;
+        
+        this._log.info(`Updated calendar list cache with ${(list.items || []).length} items`);
+
+        this._list = list;
+        this._lastListUpdate = (new Date()).getTime();
+
+        return list;
     }
     
     /**
@@ -219,6 +238,8 @@ export class GoogleCalendarService {
                     throw new Error(`Failed to delete calendar with id ${id}: ${res.status} - ${res.statusText}`);
             }
         }
+        
+        this._list = null;
     }
     
     /**

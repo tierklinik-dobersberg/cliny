@@ -12,6 +12,11 @@ export class Cache<K, V> {
     constructor(public readonly name: string, logger: Logger) {
         this._log = logger.createChild(name);
     }
+    
+    /** Removes all cache entries */
+    clear() {
+        this._byId.clear();
+    }
 
     /**
      * Adds a new key-value pair to the cache
