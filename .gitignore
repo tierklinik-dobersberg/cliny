@@ -5,3 +5,5 @@ cliny.db
 google-credentials.json
 token.json
 coverage
+cliny.log
+cliny-backup.db

@@ -11,7 +11,7 @@ import { DatabasePlugin } from './database';
 import { DoorPlugin } from './door';
 import { OpeningHoursPlugin } from './openinghours';
 import { RosterPlugin } from './roster';
-import { ConfigPlugin, ConfigService, MailConfig, MailServicePlugin, RPCPlugin } from './services';
+import { ConfigPlugin, ConfigService, MailConfig, MailServicePlugin, RPCPlugin, CachePlugin } from './services';
 import { GoogleAPIPlugin, GoogleAuthorizationService } from './services/google';
 import { UserPlugin } from './users';
 import { IntegrationPlugin } from './integration';
@@ -35,7 +35,8 @@ const CookieParser = require('restify-cookies');
         MqttPlugin,
         GoogleAPIPlugin,
         CalendarPlugin,
-        IntegrationPlugin
+        IntegrationPlugin,
+        CachePlugin
     ]
 })
 export class Cliny {
