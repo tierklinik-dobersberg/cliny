@@ -85,7 +85,6 @@ export class Scheduler implements OnDestroy {
     private readonly _state$: Subject<DoorState> = new Subject();
     private _pause: boolean = false;
     private _currentConfig: OpeningHourConfig;
-    private _holidays: Holiday[] = [];
     
     private get delayBefore(): number {
         if (!this._config || !this._config.delays) {
@@ -115,13 +114,6 @@ export class Scheduler implements OnDestroy {
                 private _log: Logger = new Logger(new NoopLogAdapter)) {
                 
         this._log = this._log.createChild('scheduler');
-        
-        // TODO(ppacher): remove this one as it's only for testing
-        setTimeout(async () => {
-            let start = moment().add(1, 'day').toDate();
-            console.log(start.toISOString());
-            console.log(await this.getConfigForDate(start));
-        }, 5000);
         
         Promise.all([this._openingHours.ready, this._configService.getConfig<SchedulerConfig>('door')])
             .then(([_, config]) => {
@@ -249,8 +241,8 @@ export class Scheduler implements OnDestroy {
         let currentState: DoorState = 'lock';
         let until: Date;
 
-        const toDate = (t: number, dateOffset?: number, minuteOffset: number = 0) => {
-            let now = new Date();
+        const toDate = (t: number, dateOffset?: number, minuteOffset: number = 0, refDate?: Date) => {
+            let now = new Date(!!refDate ? refDate.getTime() : date.getTime());
             let minutes = t % 60;
             let hours = Math.floor(t / 60);
 
@@ -310,15 +302,18 @@ export class Scheduler implements OnDestroy {
                 }
                 
                 currentState = 'lock';
-                // BUG(ppacher): seems to fail somehow :/ at least if we try it for the 01.01.2019
-                const next = this._getNextFrame(date);
+                let refDate = date;
+                if (isHoliday) {
+                    refDate = moment(refDate).add(1, 'd').startOf('day').toDate();
+                }
+                const next = this._getNextFrame(refDate);
                 
                 if (next === null) {
                     this._log.warn(`No active time frame. Current door state is 'locked' but failed to find the next active frame`);
                     until = null as any;
                 } else {
                     let [dayOffset, untilTime] = next;
-                    until = toDate(untilTime.start, dayOffset, -this.delays.before);
+                    until = toDate(untilTime.start, dayOffset, -this.delays.before, refDate);
                     this._log.info(`No active time frame. Current door state is 'locked' until ${until}`);
                 }
             }
