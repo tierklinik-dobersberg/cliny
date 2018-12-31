@@ -1,11 +1,13 @@
 import { Injectable, Logger } from '@jsmon/core';
 import { Delete, Get, Post, Put } from '@jsmon/net/http/server';
 import { Next, Request, Response } from 'restify';
-import { BadRequestError, ForbiddenError, NotAuthorizedError, InternalServerError, PreconditionFailedError, LockedError } from 'restify-errors';
+import { BadRequestError, ForbiddenError, NotAuthorizedError, InternalServerError, PreconditionFailedError, LockedError, NotFoundError } from 'restify-errors';
 import { Authenticated, CLINY_COOKIE, getAuthenticatedUser, RoleRequired } from './auth';
 import { IUser } from './models';
 import { UserController } from './user.controller';
-import { MailService, ConfigService, GlobalConfig } from '../services';
+import { MailService, ConfigService, GlobalConfig, CacheService } from '../services';
+import base64url from 'base64url';
+import { LRUCache } from '../services/cache/lru-cache';
 
 const defaultInvitationTemplate = `
 <html>
@@ -31,13 +33,24 @@ Dies ist einen automatisch generierte Nachricht
 </html>
 `;
 
+interface Icon {
+    mimetype: string;
+    data: Buffer;
+}
+
 @Injectable()
 export class UserAPI {
+    private _iconCache: LRUCache<string, Icon>;
+
     constructor(private _log: Logger,
                 private _userCtrl: UserController,
                 private _configService: ConfigService,
+                private _cacheService: CacheService,
                 private _mailService: MailService) {
         this._log = this._log.createChild('api:user');
+        this._iconCache = this._cacheService.create('lru', 'usericons', {
+            maxSize: 15
+        });
     }
     
     @Get('/')
@@ -114,6 +127,62 @@ export class UserAPI {
             }
 
             res.send(200, authenticatedUser);
+        } catch (err) {
+            next(err);
+        }
+    }
+    
+    @Get('/icons/:username')
+    @Authenticated()
+    async getUserIcon(req: Request, res: Response, next: Next) {
+        try {
+            const cachedIcon = this._iconCache.get(req.params.username);
+            if (cachedIcon !== undefined) {
+                this._log.debug(`Using cached icon for user "${req.params.username}"`);
+                res.sendRaw(200, cachedIcon.data, {
+                    'Content-Type': cachedIcon.mimetype,
+                    'Cache-Control': 'public, max-age=600'
+                });
+                next();
+                return;
+            }
+
+            let icon = await this._userCtrl.getUserIcon(req.params.username);
+            if (icon === null) {
+                throw new NotFoundError(`No icon for user ${req.params.username}`);
+            }
+
+            // data uris should start with data:<mimetype>;base64,
+            if (!icon.startsWith('data:')) {
+                throw new InternalServerError(`Invalid user icon format`)
+            }
+            
+            icon = icon.substr('data:'.length);
+
+            // next, there should be the mimetype
+            let i = 0;
+            while(icon[++i] !== ';' || icon[i] === undefined) {};
+            
+            const mime = icon.substr(0, i);
+            icon = icon.substr(mime.length);
+            
+            if (!icon.startsWith(';base64,')) {
+                throw new InternalServerError(`Invalid user icon format`);
+            }
+            
+            icon = icon.substr(';base64,'.length);
+            const payload = Buffer.from(icon, 'base64');
+
+            this._iconCache.add(req.params.username, {
+                mimetype: mime,
+                data: payload
+            })
+
+            res.sendRaw(200, payload, {
+                'Content-Type': mime,
+                'Cache-Control': 'public, max-age=600'
+            });
+            next();
         } catch (err) {
             next(err);
         }
@@ -234,6 +303,8 @@ export class UserAPI {
             
             delete (user as any)['password']; 
             await this._userCtrl.updateUser(user);
+            
+            this._iconCache.delete(user.username);
             
             res.send(204);
             next();

@@ -33,9 +33,9 @@ export class CacheService implements OnDestroy {
     create(type: string, name: string, opt?: any) {
         switch (type) {
         case 'lru':
-            return new LRUCache(name, opt.maxSize);
+            return new LRUCache(name, this._log, opt.maxSize);
         case 'basic':
-            return new Cache(name);
+            return new Cache(name, this._log);
         }
         
         throw new Error(`Unsupported cache type "${type}"`);

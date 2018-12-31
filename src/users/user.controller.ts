@@ -219,6 +219,21 @@ export class UserController {
     }
     
     /**
+     * Returns the users icon or null
+     * 
+     * @param name - The name of the user
+     */
+    async getUserIcon(name: string): Promise<string | null> {
+        let user = await this._userRepo.findOne(name);
+
+        if (!user) {
+            throw new NotFoundError(`Unknown username ${name}`);
+        }
+        
+        return user.iconData || null;
+    }
+
+    /**
      * Returns a list of all users stored in the database.
      * Does not return secret information like passwords
      */

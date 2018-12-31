@@ -1,3 +1,4 @@
+import {Logger} from '@jsmon/core';
 import {Cache} from './base-cache';
 
 export class LRUCache<K, V> extends Cache<K, V> {
@@ -7,8 +8,8 @@ export class LRUCache<K, V> extends Cache<K, V> {
     /** @internal - List tracking how recent a cache entry has been touched */
     private _lru: K[] = [];
 
-    constructor(name: string, max_size: number) {
-        super(name);
+    constructor(name: string, logger: Logger, max_size: number) {
+        super(name, logger);
     
         this._maxSize = max_size;
     }
@@ -85,6 +86,10 @@ export class LRUCache<K, V> extends Cache<K, V> {
             } else {
                 evicted.push([lastKey, value]);
             }
+        }
+
+        if (evicted.length > 0) {
+            this._log.debug(`Evicted ${evicted.length} items from cache: ${evicted.map(e => e[0]).join(', ')}`);
         }
 
         return evicted;

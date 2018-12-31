@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/tierklinik-dobersberg/door-controller#readme",
   "devDependencies": {
+    "@types/base64url": "^2.0.0",
     "@types/dot": "^1.1.2",
     "@types/jest": "^23.3.3",
     "@types/moment": "^2.13.0",
@@ -40,6 +41,7 @@
     "@jsmon/core": "0.0.1",
     "@jsmon/net": "0.0.1",
     "@types/bcrypt-nodejs": "0.0.30",
+    "base64url": "^3.0.1",
     "bcrypt-nodejs": "0.0.3",
     "dot": "^1.1.2",
     "figlet": "^1.2.1",

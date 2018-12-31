@@ -58,8 +58,8 @@ export class User implements IUser {
     @Column({nullable: true})
     color: string;
     
-    @Column({type: 'text', nullable: true, default: null})
-    icon: string|null;
+    @Column({name: 'icon', type: 'text', nullable: true, default: null})
+    iconData: string|null;
     
     @Column({type: 'text', nullable: true})
     googleCalendarID: string|null;
@@ -72,6 +72,10 @@ export class User implements IUser {
     
     @Column({nullable: true})
     mustChangePassword: boolean;
+    
+    get icon(): string | null {
+        return this.username;
+    }
     
     setMustChangePassword(v: boolean): this {
         this.mustChangePassword = v;
@@ -104,7 +108,7 @@ export class User implements IUser {
     }
     
     setIcon(data: string|null): this {
-        this.icon = data;
+        this.iconData = data;
         return this;
     }
     

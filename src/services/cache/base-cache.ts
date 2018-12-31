@@ -1,3 +1,4 @@
+import { Logger } from "@jsmon/core";
 
 export class Cache<K, V> {
     /**
@@ -5,8 +6,12 @@ export class Cache<K, V> {
      * Map holding all cached items by key
      */
     private readonly _byId: Map<K, V> = new Map();
+    
+    protected _log: Logger;
 
-    constructor(public readonly name: string) {}
+    constructor(public readonly name: string, logger: Logger) {
+        this._log = logger.createChild(name);
+    }
 
     /**
      * Adds a new key-value pair to the cache
