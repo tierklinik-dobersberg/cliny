@@ -4,12 +4,17 @@ import { Cache } from './base-cache';
 
 @Injectable()
 export class CacheService implements OnDestroy {
+    private _lrus: Map<string, LRUCache<any, any>> = new Map();
+
     constructor(private _log: Logger) {
         this._log = this._log.createChild(`cache`);
     }
     
     onDestroy() {
-    
+        // Call the OnDestroy method of all LRU caches
+        this._lrus.forEach(cache => {
+            cache.onDestroy();
+        });
     }
     
     /**
@@ -33,7 +38,15 @@ export class CacheService implements OnDestroy {
     create(type: string, name: string, opt?: any) {
         switch (type) {
         case 'lru':
-            return new LRUCache(name, this._log, opt);
+            if (this._lrus.has(name)) {
+                return this._lrus.get(name)!;
+            }
+            
+            const newCache = new LRUCache(name, this._log, opt);
+            
+            this._lrus.set(name, newCache);
+            
+            return newCache;
         case 'basic':
             return new Cache(name, this._log);
         }
