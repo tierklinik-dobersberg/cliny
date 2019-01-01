@@ -1,5 +1,5 @@
 import { Injectable, OnDestroy, Logger } from '@jsmon/core';
-import { LRUCache } from './lru-cache';
+import { LRUCache, LRUCacheSettings } from './lru-cache';
 import { Cache } from './base-cache';
 
 @Injectable()
@@ -19,7 +19,7 @@ export class CacheService implements OnDestroy {
      * @param name - The name of the cache instance (for logging purposes)
      * @param options - Configuration options for the LRUCache
      */
-    create<K = any, V = any>(type: 'lru', name: string, options: {maxSize: number}): LRUCache<K, V>;
+    create<K = any, V = any>(type: 'lru', name: string, options: LRUCacheSettings<K, V>): LRUCache<K, V>;
     
     /**
      * Creates a new basic cache
@@ -33,7 +33,7 @@ export class CacheService implements OnDestroy {
     create(type: string, name: string, opt?: any) {
         switch (type) {
         case 'lru':
-            return new LRUCache(name, this._log, opt.maxSize);
+            return new LRUCache(name, this._log, opt);
         case 'basic':
             return new Cache(name, this._log);
         }

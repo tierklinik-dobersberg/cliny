@@ -6,7 +6,6 @@ import { Authenticated, CLINY_COOKIE, getAuthenticatedUser, RoleRequired } from 
 import { IUser } from './models';
 import { UserController } from './user.controller';
 import { MailService, ConfigService, GlobalConfig, CacheService } from '../services';
-import base64url from 'base64url';
 import { LRUCache } from '../services/cache/lru-cache';
 
 const defaultInvitationTemplate = `
@@ -49,7 +48,8 @@ export class UserAPI {
                 private _mailService: MailService) {
         this._log = this._log.createChild('api:user');
         this._iconCache = this._cacheService.create('lru', 'usericons', {
-            maxSize: 15
+            maxSize: 15,
+            loader: (key: string) => this._getUserIcon(key),
         });
     }
     
@@ -136,53 +136,15 @@ export class UserAPI {
     @Authenticated()
     async getUserIcon(req: Request, res: Response, next: Next) {
         try {
-            const cachedIcon = this._iconCache.get(req.params.username);
-            if (cachedIcon !== undefined) {
-                this._log.debug(`Using cached icon for user "${req.params.username}"`);
-                res.sendRaw(200, cachedIcon.data, {
-                    'Content-Type': cachedIcon.mimetype,
-                    'Cache-Control': 'public, max-age=600'
-                });
-                next();
-                return;
-            }
-
-            let icon = await this._userCtrl.getUserIcon(req.params.username);
-            if (icon === null) {
-                throw new NotFoundError(`No icon for user ${req.params.username}`);
-            }
-
-            // data uris should start with data:<mimetype>;base64,
-            if (!icon.startsWith('data:')) {
-                throw new InternalServerError(`Invalid user icon format`)
-            }
-            
-            icon = icon.substr('data:'.length);
-
-            // next, there should be the mimetype
-            let i = 0;
-            while(icon[++i] !== ';' || icon[i] === undefined) {};
-            
-            const mime = icon.substr(0, i);
-            icon = icon.substr(mime.length);
-            
-            if (!icon.startsWith(';base64,')) {
-                throw new InternalServerError(`Invalid user icon format`);
-            }
-            
-            icon = icon.substr(';base64,'.length);
-            const payload = Buffer.from(icon, 'base64');
-
-            this._iconCache.add(req.params.username, {
-                mimetype: mime,
-                data: payload
-            })
-
-            res.sendRaw(200, payload, {
-                'Content-Type': mime,
+            // If the icon is not already cached, it will be loaded and cached by the
+            // cache loader function (this._getUserIcon)
+            const cachedIcon = await this._iconCache.get(req.params.username);
+            res.sendRaw(200, cachedIcon!.data, {
+                'Content-Type': cachedIcon!.mimetype,
                 'Cache-Control': 'public, max-age=600'
             });
             next();
+            
         } catch (err) {
             next(err);
         }
@@ -354,5 +316,38 @@ export class UserAPI {
         }
         
         return null;
+    }
+
+    private async _getUserIcon(username: string): Promise<Icon> {
+        let icon = await this._userCtrl.getUserIcon(username);
+        if (icon === null) {
+            throw new NotFoundError(`No icon for user ${username}`);
+        }
+
+        // data uris should start with data:<mimetype>;base64,
+        if (!icon.startsWith('data:')) {
+            throw new InternalServerError(`Invalid user icon format`)
+        }
+        
+        icon = icon.substr('data:'.length);
+
+        // next, there should be the mimetype
+        let i = 0;
+        while(icon[++i] !== ';' || icon[i] === undefined) {};
+        
+        const mime = icon.substr(0, i);
+        icon = icon.substr(mime.length);
+        
+        if (!icon.startsWith(';base64,')) {
+            throw new InternalServerError(`Invalid user icon format`);
+        }
+        
+        icon = icon.substr(';base64,'.length);
+        const payload = Buffer.from(icon, 'base64');
+        
+        return {
+            data: payload,
+            mimetype: mime,
+        };
     }
 }

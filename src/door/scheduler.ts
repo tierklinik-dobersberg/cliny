@@ -295,7 +295,7 @@ export class Scheduler implements OnDestroy {
             if (!!currentTimeFrame && !isHoliday) {
                 currentState = 'unlock';
                 until = toDate(currentTimeFrame.end, 0, this.delays.after);
-                this._log.info(`Door state '${currentState}' configured from time-frame ${currentTimeFrame.start} - ${currentTimeFrame.end} until ${until}`)
+                this._log.debug(`Door state '${currentState}' configured from time-frame ${currentTimeFrame.start} - ${currentTimeFrame.end} until ${until}`)
             } else {
                 if (!!currentTimeFrame && isHoliday) {
                     this._log.info(`Found opening hours but it's a holiday`);
@@ -314,7 +314,7 @@ export class Scheduler implements OnDestroy {
                 } else {
                     let [dayOffset, untilTime] = next;
                     until = toDate(untilTime.start, dayOffset, -this.delays.before, refDate);
-                    this._log.info(`No active time frame. Current door state is 'locked' until ${until}`);
+                    this._log.debug(`No active time frame. Current door state is 'locked' until ${until}`);
                 }
             }
         }

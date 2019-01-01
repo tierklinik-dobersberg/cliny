@@ -72,6 +72,7 @@ export class HolidayService {
         // There's no need to cache more than two years of holidays
         this._cache = this._cacheService.create('lru', 'holidaysByYear', {
             maxSize: 2,
+            loader: (year: number) => this._loadHolidays(year)
         });
 
         this._log = this._log.createChild(`holidays`);
@@ -82,24 +83,21 @@ export class HolidayService {
             return [];
         }
         
-        const holidays = this._cache.get(year);    
+        const holidays = await this._cache.get(year)
+            .catch(err => {
+                this._log.error(`Failed to load holidays for ${year}: ${err}`);
+                return [];
+            });    
         
-        if (holidays !== undefined) {
-            this._log.debug(`Using cached holiday list for ${this._country} in ${year}`);
-            return holidays;
-        }
-        
+        return holidays!;
+    }
+
+    private async _loadHolidays(year: number): Promise<Holiday[]> {
         const url = getHolidayAPIURL(this._country, ''+year);
         
-        try {
-            const response = await this._http.get<Holiday[]>(url);
-            this._log.debug(`Received holiday list for ${this._country} in ${year} with ${response.length} entries`);
-            this._cache.add(year, response);
-            
-            return response;
-        } catch (err) {
-            this._log.error(`Failed to retrieve holiday list for ${this._country} in ${year}`);
-            return [];
-        }
+        const response = await this._http.get<Holiday[]>(url);
+        this._log.debug(`Received holiday list for ${this._country} in ${year} with ${response.length} entries`);
+        
+        return response;
     }
 }

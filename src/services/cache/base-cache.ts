@@ -1,6 +1,6 @@
 import { Logger } from "@jsmon/core";
 
-export class Cache<K, V> {
+export class Cache<K, V, S = V> {
     /**
      * @internal
      * Map holding all cached items by key
@@ -49,7 +49,7 @@ export class Cache<K, V> {
      * 
      * @param key - The key of the cache item
      */
-    get(key: K): V | undefined {
+    async get(key: K): Promise<V | undefined> {
         return this._byId.get(key) || undefined;
     }
 }
